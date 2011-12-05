@@ -1,3 +1,9 @@
+1.18.0.1
+
+fix bug on fetchresults not returning xml
+remove "register" and "online" from code / cache
+
+
 ===========================================================================================
 1.18.0.0
 

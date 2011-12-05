@@ -11,9 +11,10 @@
 #define PAD sizeof(char *)
 #define LSTRPAD(l) (((l)+PAD) & ~(PAD-1))
 
+void ftrace(char *fmt, ...);
 
 
-CACHE_COLL::CACHE_COLL(long coll_id, long base_id, char *name, char *prefs, bool registered)
+CACHE_COLL::CACHE_COLL(long coll_id, long base_id, char *name, char *prefs) //, bool registered)
 {
   int lstr, lram;
 	this->coll_id = coll_id;
@@ -22,11 +23,11 @@ CACHE_COLL::CACHE_COLL(long coll_id, long base_id, char *name, char *prefs, bool
 	this->name_lenPAD = 0;
 	this->prefs = NULL;
 	this->prefs_lenPAD = 0;
-	this->registered = registered;
+//	this->registered = registered;
 	this->binsize = sizeof(this->coll_id)			// coll_id
 					+ sizeof(this->base_id)			// base_id
 //					+ sizeof(this->phserver_port)	// phserver_port
-					+ sizeof(long)					// registered
+//					+ sizeof(long)					// registered
 					+ PAD							// name	(if null)
 #if GETPREFS
 					+ PAD							// prefs (if null)
@@ -72,7 +73,7 @@ long *CACHE_COLL::serialize_bin(long *binbuff)
 {
 	*binbuff++ = this->coll_id;
 	*binbuff++ = this->base_id;
-	*binbuff++ = (long)(this->registered);
+//	*binbuff++ = (long)(this->registered);
 	if(this->name_lenPAD > 0)
 	{
 		memcpy(binbuff, this->name, this->name_lenPAD);
@@ -107,7 +108,7 @@ void CACHE_COLL::serialize_php(zval *zcolllist)
 #if GETPREFS
 	add_assoc_string(zcoll, (char *)"prefs", this->prefs, true);
 #endif
-	add_assoc_bool(zcoll, (char *)"registered", this->registered);
+//	add_assoc_bool(zcoll, (char *)"registered", this->registered);
 	add_next_index_zval(zcolllist, zcoll);
 }
 
@@ -119,7 +120,7 @@ void CACHE_COLL::dump()
 #if GETPREFS
 	zend_printf("|  |  |  prefs='%s' (binsize=%li)\n", this->prefs ? this->prefs : "null", this->prefs_lenPAD);
 #endif
-	zend_printf("|  |  |  registered=%s\n", this->registered ? "TRUE":"FALSE");
+//	zend_printf("|  |  |  registered=%s\n", this->registered ? "TRUE":"FALSE");
 	zend_printf("|  |  +--(coll binsize=%li)\n", this->get_binsize());
 	zend_printf("|  |\n");
 }
@@ -148,9 +149,9 @@ CACHE_COLL::~CACHE_COLL()
 
 
 
-CACHE_BASE::CACHE_BASE(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname, bool online)
+CACHE_BASE::CACHE_BASE(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname) //, bool online)
 {
-	this->online = online;
+//	this->online = online;
  	this->base_id = base_id;
  	this->sbas_id = sbas_id;
 	this->port = port;
@@ -248,7 +249,7 @@ CACHE_BASE::CACHE_BASE(long base_id, char *host, long port, char *user, char *pa
 	}
 	this->binsize = sizeof(this->base_id)			// base_id
 					+ sizeof(this->sbas_id)			// sbas_id
-					+ sizeof(long)					// online
+//					+ sizeof(this->online)			// online
 					+ this->viewname_lenPAD			// viewname
 					+ this->host_lenPAD				// host
 					+ sizeof(this->port)			// port
@@ -279,7 +280,7 @@ long CACHE_BASE::get_local_base_id2(long distant_coll_id)
     CACHE_COLL *cc;
 	for(cc=this->firstcoll; cc && cc->coll_id != distant_coll_id; cc = cc->nextcoll)
 		;
-	if(cc && cc->registered)
+	if(cc) // && cc->registered)
 		return(cc->base_id);
 	return(-1);
 }
@@ -293,9 +294,9 @@ long CACHE_BASE::get_binsize()
 	return(binsize);
 }
 
-CACHE_COLL *CACHE_BASE::addcoll(long coll_id, long base_id, char *name, char *prefs, bool registered)
+CACHE_COLL *CACHE_BASE::addcoll(long coll_id, long base_id, char *name, char *prefs) //, bool registered)
 {
-  CACHE_COLL *cc, *ncc = new CACHE_COLL(coll_id, base_id, name, prefs, registered);
+  CACHE_COLL *cc, *ncc = new CACHE_COLL(coll_id, base_id, name, prefs); // , registered);
 	for(cc=this->firstcoll; cc && cc->nextcoll; cc = cc->nextcoll)
 		;
 	if(cc)
@@ -310,7 +311,7 @@ void CACHE_BASE::dump()
   CACHE_COLL *cc;
 	zend_printf("|  +--base_id=%li\n", this->base_id);
 	zend_printf("|  |  sbas_id=%li\n", this->sbas_id);
-	zend_printf("|  |  online=%s\n", this->online ? "TRUE":"FALSE");
+//	zend_printf("|  |  online=%s\n", this->online ? "TRUE":"FALSE");
 	zend_printf("|  |  viewname=%s (binsize=%li)\n", this->viewname, this->viewname_lenPAD);
 	zend_printf("|  |  host=%s (binsize=%li)\n", this->host, this->host_lenPAD);
 	zend_printf("|  |  port=%li\n", this->port);
@@ -325,7 +326,7 @@ void CACHE_BASE::dump()
 	zend_printf("|\n");
 }
 
-void CACHE_BASE::serialize_php(zval *zbaselist, bool everything)
+void CACHE_BASE::serialize_php(zval *zbaselist) //, bool everything)
 {
   CACHE_COLL *cc;
   zval *zbase, *zcolllist;
@@ -333,7 +334,7 @@ void CACHE_BASE::serialize_php(zval *zbaselist, bool everything)
 	array_init(zbase);
 	add_assoc_long(zbase, (char *)"base_id", this->base_id);
 	add_assoc_long(zbase, (char *)"sbas_id", this->sbas_id);
-	add_assoc_bool(zbase, (char *)"online", this->online);
+//	add_assoc_bool(zbase, (char *)"online", this->online);
 	add_assoc_string(zbase, (char *)"viewname", this->viewname, true);
 	add_assoc_string(zbase, (char *)"host", this->host, true);
 	add_assoc_long(zbase, (char *)"port", this->port);
@@ -348,7 +349,7 @@ void CACHE_BASE::serialize_php(zval *zbaselist, bool everything)
 	array_init(zcolllist);
 	for(cc = this->firstcoll; cc; cc = cc->nextcoll)
 	{
-		if(everything || cc->registered)		// do not return collections if we are not registered
+//		if(everything || cc->registered)		// do not return collections if we are not registered
 			cc->serialize_php(zcolllist);
 	}
 	add_assoc_zval(zbase, (char *)"collections", zcolllist);
@@ -364,7 +365,7 @@ long *CACHE_BASE::serialize_bin(long *binbuff)
 
 	*binbuff++ = this->sbas_id;
 
-	*binbuff++ = (long)(this->online);
+//	*binbuff++ = (long)(this->online);
 
 	if(this->viewname)
 		memcpy(binbuff, this->viewname, this->viewname_lenPAD);
@@ -553,7 +554,11 @@ SQLCONN *CACHE_SESSION::connect(long base_id)
 	if(cb)
 	{
 		if(cb->conn)
+		{
+// ftrace("LINE %d, conn=%p\n", __LINE__, cb->conn);
 			return(cb->conn);
+		}
+// ftrace("LINE %d, dbname=%s\n", __LINE__, cb->dbname);
 		return(cb->conn = new SQLCONN(cb->host, cb->port, cb->user, cb->passwd, cb->dbname));
 	}
 	return(NULL);
@@ -605,7 +610,7 @@ long CACHE_SESSION::get_distant_coll_id(long local_base_id)
 	}
 	return(-1);
 }
-
+/*
 void CACHE_SESSION::set_registered(long local_base_id, bool registered)
 {
   CACHE_BASE *cb;
@@ -618,10 +623,10 @@ void CACHE_SESSION::set_registered(long local_base_id, bool registered)
 			cc->registered = registered;
 	}
 }
-
-CACHE_BASE *CACHE_SESSION::addbase(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname, bool online)
+*/
+CACHE_BASE *CACHE_SESSION::addbase(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname) //, bool online)
 {
-  CACHE_BASE *cb, *ncb = new CACHE_BASE(base_id, host, port, user, passwd, dbname, xmlstruct, sbas_id, viewname, online);
+  CACHE_BASE *cb, *ncb = new CACHE_BASE(base_id, host, port, user, passwd, dbname, xmlstruct, sbas_id, viewname); //, online);
 	for(cb=this->firstbase; cb && cb->nextbase; cb = cb->nextbase)
 		;
 	if(cb)
@@ -640,7 +645,7 @@ void CACHE_SESSION::dump()
 	zend_printf("</pre>\n");
 }
 
-void CACHE_SESSION::serialize_php(zval *result, bool everything)
+void CACHE_SESSION::serialize_php(zval *result) //, bool everything)
 {
   CACHE_BASE *cb;
   CACHE_COLL *cc;
@@ -652,12 +657,12 @@ void CACHE_SESSION::serialize_php(zval *result, bool everything)
 	array_init(zbaselist);
 	for(cb = this->firstbase; cb; cb = cb->nextbase)
 	{
-		basereg = everything;
-		for(cc=cb->firstcoll; !basereg && cc; cc=cc->nextcoll)
-			basereg = cc->registered;
-
-		if(everything || (cb->online && basereg))		// don't return offline bases
-			cb->serialize_php(zbaselist, everything);
+//		basereg = everything;
+//		for(cc=cb->firstcoll; !basereg && cc; cc=cc->nextcoll)
+//			basereg = cc->registered;
+//
+//		if(everything || (cb->online && basereg))		// don't return offline bases
+			cb->serialize_php(zbaselist); // , everything);
 	}
 	add_assoc_zval(result, (char *)"bases", zbaselist);
 }
@@ -692,7 +697,7 @@ void CACHE_SESSION::unserialize_bin(char *bin)
 	{
 		long base_id = *p++;
 		long sbas_id = *p++;
-		bool online = *p++ ? true : false;
+//		bool online = *p++ ? true : false;
 		char *viewname = (char *)p;
 		p += LSTRPAD(strlen(viewname)) / sizeof(long);
 		char *host = (char *)p;
@@ -702,14 +707,14 @@ void CACHE_SESSION::unserialize_bin(char *bin)
 		p += LSTRPAD(strlen(user)) / sizeof(long);
 		char *passwd = (char *)p;
 		p += LSTRPAD(strlen(passwd)) / sizeof(long);
-		long engine = *p++;
+//		long engine = *p++;
 		char *dbname = (char *)p;
 		p += LSTRPAD(strlen(dbname)) / sizeof(long);
 		char *xmlstruct = (char *)p;
 		p += LSTRPAD(strlen(xmlstruct)) / sizeof(long);
 		unsigned long ncoll = *p++;
 
-		cb = this->addbase(base_id, host, port, user, passwd, dbname, xmlstruct, sbas_id, viewname, online);
+		cb = this->addbase(base_id, host, port, user, passwd, dbname, xmlstruct, sbas_id, viewname); // , online);
 
 		while(ncoll--)
 		{
@@ -729,7 +734,7 @@ void CACHE_SESSION::unserialize_bin(char *bin)
 			l = LSTRPAD(strlen(prefs));
 			p += l/sizeof(long);
 #endif
-			cb->addcoll(coll_id, base_id, name, prefs, registered ? true : false);
+			cb->addcoll(coll_id, base_id, name, prefs); // , registered ? true : false);
 
 		}
 	}

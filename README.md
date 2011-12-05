@@ -1,16 +1,7 @@
-This PHP extension is supposed to be used with Phraseanet https://github.com/alchemy-fr/Phraseanet
-
-Install
-=======
-
-Run
-
-```bash
 ./configure
 make
 make test
 sudo make install
-```
 
 DO NOT 'phpize' before configure !
 

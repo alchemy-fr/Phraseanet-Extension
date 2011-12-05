@@ -320,3 +320,21 @@ PHP_FUNCTION(phrasea_conn)
 		RETURN_FALSE;
 	}
 }
+
+
+/*
+ utility to log on file when zend_printf is not a solution
+ */
+void ftrace(char *fmt, ...)
+{
+	FILE * pFile;
+	if((pFile = fopen("/tmp/phrasea_extension.log", "a")))
+	{
+		va_list args;
+		va_start(args, fmt);
+		vfprintf(pFile, fmt, args);
+		va_end(args);
+		fclose(pFile);
+	}
+}
+

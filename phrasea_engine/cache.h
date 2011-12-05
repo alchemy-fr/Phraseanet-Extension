@@ -6,12 +6,12 @@
 class CACHE_COLL
 {
 public:
-	CACHE_COLL(long coll_id, long base_id, char *name, char *prefs, bool registered);
+	CACHE_COLL(long coll_id, long base_id, char *name, char *prefs); //, bool registered);
 	~CACHE_COLL();
 	friend class CACHE_BASE;
 	friend class CACHE_SESSION;
 private:
-	bool registered;
+//	bool registered;
 	void dump();
 	void serialize_php(zval *colllist);
 	long *serialize_bin(long *p);
@@ -29,12 +29,12 @@ private:
 class CACHE_BASE
 {
 public:
-	CACHE_BASE(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname, bool online);
+	CACHE_BASE(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname); // , bool online);
 	~CACHE_BASE();
-	CACHE_COLL *addcoll(long coll_id, long base_id, char *name, char *prefs, bool registered);
+	CACHE_COLL *addcoll(long coll_id, long base_id, char *name, char *prefs); //, bool registered);
 	friend class CACHE_SESSION;
 private:
-	bool online;
+//	bool online;
 	SQLCONN *conn;
 	long base_id;
 	long sbas_id;
@@ -54,7 +54,7 @@ private:
 	long xmlstruct_lenPAD;
 	long binsize;
 	void dump();
-	void serialize_php(zval *zbaselist, bool everything);
+	void serialize_php(zval *zbaselist); //, bool everything);
 	long *serialize_bin(long *p);
 	CACHE_COLL *firstcoll;
 	class CACHE_BASE *nextbase;
@@ -70,9 +70,9 @@ public:
 	bool save();
 	bool restore(long session_id);
 	~CACHE_SESSION();
-	CACHE_BASE *addbase(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname, bool online);
+	CACHE_BASE *addbase(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname); //, bool online);
 	void dump();
-	void serialize_php(zval *result, bool everything);
+	void serialize_php(zval *result); // , bool everything);
 	int serialize_bin(long *binbuff);
 	void unserialize_bin(char *bin);
 	long get_session_id();
@@ -80,7 +80,7 @@ public:
 	long get_local_base_id2(long local_base_id, long distant_coll_id);
 	long get_distant_coll_id(long local_base_id);
 	SQLCONN *connect(long base_id);
-	void set_registered(long local_base_id, bool registered);
+//	void set_registered(long local_base_id, bool registered);
 private:
 	SQLCONN *epublisher;
 	long session_id;

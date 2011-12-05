@@ -133,13 +133,13 @@ ZEND_FUNCTION(phrasea_create_session)
 							{
 								SQLROW *row2 = res2.fetch_row();
 								if(row2)
-									cache_base = tmp_session->addbase(basid, row->field(1), atoi(row->field(2)), row->field(4), row->field(5), row->field(3), row2->field(0), sbas_id, viewname, true);
+									cache_base = tmp_session->addbase(basid, row->field(1), atoi(row->field(2)), row->field(4), row->field(5), row->field(3), row2->field(0), sbas_id, viewname); //, true);
 								else
-									cache_base = tmp_session->addbase(basid, row->field(1), atoi(row->field(2)), row->field(4), row->field(5), row->field(3), NULL, sbas_id, viewname, true);
+									cache_base = tmp_session->addbase(basid, row->field(1), atoi(row->field(2)), row->field(4), row->field(5), row->field(3), NULL, sbas_id, viewname); //, true);
 							}
 							else
 							{
-								cache_base = tmp_session->addbase(basid, row->field(1), atoi(row->field(2)), row->field(4), row->field(5), row->field(3), NULL, sbas_id, viewname, true);
+								cache_base = tmp_session->addbase(basid, row->field(1), atoi(row->field(2)), row->field(4), row->field(5), row->field(3), NULL, sbas_id, viewname); //, true);
 							}
 						}
 						else
@@ -161,7 +161,7 @@ ZEND_FUNCTION(phrasea_create_session)
 							if(cache_base)
 							{
 								// cache_base->addcoll(collid, basid, row->field(0), (char *) (row->field(1) ? row->field(1) : ""), false);
-								cache_base->addcoll(collid, basid, row->field(0), (char *) (row->field(1) ? row->field(1) : ""), true);
+								cache_base->addcoll(collid, basid, row->field(0), (char *) (row->field(1) ? row->field(1) : "")); // , true);
 							}
 						}
 					}
@@ -219,7 +219,7 @@ ZEND_FUNCTION(phrasea_open_session)
 								delete PHRASEA2_G(global_session);
 							PHRASEA2_G(global_session) = tmp_session;
 
-							PHRASEA2_G(global_session)->serialize_php(return_value, false); // do NOT include offlines and non registered
+							PHRASEA2_G(global_session)->serialize_php(return_value); //, false); // do NOT include offlines and non registered
 						}
 					}
 				}

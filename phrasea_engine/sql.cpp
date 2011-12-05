@@ -1,8 +1,11 @@
+#include <mysql.h>
+
 #include "base_header.h"
 #include "phrasea_clock_t.h"
 
 #include "sql.h"
 
+void ftrace(char *fmt, ...);
 
 #define QUOTE(x) _QUOTE(x)
 #define _QUOTE(a) #a 
@@ -33,6 +36,13 @@ SQLCONN::SQLCONN(char *host, unsigned int port, char *user, char *passwd, char *
 			{
 				sprintf(this->ukey, "%s_%u_%s", host, (unsigned int) port, (dbname ? dbname : ""));
 				this->connok = true;
+				//				no need to mysql_select_db since it's done on mysql_real_connect
+				//				if(dbname && (mysql_select_db(&(this->mysql_conn), dbname) != 0))
+				//				{
+				//					// zend_printf("mysql_select_db failed<br>\n");
+				//					mysql_close(&(this->mysql_conn));
+				//					this->connok = false;
+				//				}
 			}
 		}
 	}
@@ -94,14 +104,14 @@ bool SQLCONN::isok()
 
 bool SQLRES::query(char *sql)
 {
-	if(mysql_query(&(parent_conn->mysql_conn), sql) == 0)
+	if(mysql_query(&(this->parent_conn->mysql_conn), sql) == 0)
 	{
 		if(this->res)
 		{
 			mysql_free_result(this->res);
 			this->res = NULL;
 		}
-		if(this->res = mysql_store_result(&(parent_conn->mysql_conn)))
+		if(this->res = mysql_store_result(&(this->parent_conn->mysql_conn)))
 		{
 			// !!!!!!!!!!!!!!!!!!!!! convert from _int64 to int !!!!!!!!!!!!!!!!!
 			this->nrows = (int) mysql_num_rows(this->res);

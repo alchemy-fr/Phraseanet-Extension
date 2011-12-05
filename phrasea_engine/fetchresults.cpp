@@ -14,6 +14,9 @@ HBAL;
 
 char THEX[] = "0123456789ABCDEF";
 
+void ftrace(char *fmt, ...);
+
+
 ZEND_FUNCTION(phrasea_fetch_results)
 {
 	long session, firstanswer, nanswers;
@@ -141,7 +144,7 @@ ZEND_FUNCTION(phrasea_fetch_results)
 								startChrono(chrono);
 								SQLCONN *conn = PHRASEA2_G(global_session)->connect(panswer[a].bid);
 								add_assoc_double(zanswer, (char *) "time_dboxConnect", stopChrono(chrono));
-
+								
 								if(conn)
 								{
 									SQLRES res(conn);
@@ -235,6 +238,10 @@ ZEND_FUNCTION(phrasea_fetch_results)
 											}
 
 										}
+									}
+									else
+									{
+ftrace("LINE %d ERR: %s\n", __LINE__, conn->error());
 									}
 								}
 							}
