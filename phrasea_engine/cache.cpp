@@ -723,7 +723,7 @@ void CACHE_SESSION::unserialize_bin(char *bin)
 
 			long base_id = *p++;
 
-			long registered = *p++;
+//			long registered = *p++;
 
 			char *name = (char *)p;
 			l = LSTRPAD(strlen(name));

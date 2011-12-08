@@ -317,7 +317,7 @@ public:
 	CNODE(int type)
 	{
 		this->type = type;
-		this->nbranswers = 0;
+		// this->nbranswers = 0;
 		this->nleaf = 0;
 		this->isempty = FALSE;
 		this->time_C = -1;
@@ -327,7 +327,7 @@ public:
 	int type;
 	bool isempty;
 	std::set<PCANSWER, PCANSWERCOMPRID_DESC> answers;
-	int nbranswers;
+	// int nbranswers;
 	int nleaf;
 	double time_C;
 	double time_sqlQuery, time_sqlStore, time_sqlFetch;

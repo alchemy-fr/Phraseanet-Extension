@@ -169,7 +169,7 @@ ZEND_FUNCTION(phrasea_create_session)
 
 				if(conn)
 					delete conn;
-
+// tmp_session->dump();
 				// keep the session global and save in cache
 				if(PHRASEA2_G(global_session))
 					delete PHRASEA2_G(global_session);
@@ -213,6 +213,7 @@ ZEND_FUNCTION(phrasea_open_session)
 				{
 					if(tmp_session->restore(sesid))
 					{
+// tmp_session->dump();
 						if(tmp_session->get_session_id() == sesid)
 						{
 							if(PHRASEA2_G(global_session))

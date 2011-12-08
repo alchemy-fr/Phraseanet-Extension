@@ -230,7 +230,7 @@ void doOperatorAND(CNODE *n)
 			al->freeHits();
 			lastinsert = n->answers.insert(lastinsert, al);
 
-			n->nbranswers++;
+			// n->nbranswers++;
 
 			delete(ar);
 
@@ -263,13 +263,13 @@ void doOperatorOR(CNODE *n)
 		{
 			lastinsert = n->answers.insert(lastinsert, al);
 			ll.erase(ll.begin());
-			n->nbranswers++;
+			// n->nbranswers++;
 		}
 		else if(ar->rid > al->rid)
 		{
 			lastinsert = n->answers.insert(lastinsert, ar);
 			lr.erase(lr.begin());
-			n->nbranswers++;
+			// n->nbranswers++;
 		}
 		else
 		{
@@ -303,7 +303,7 @@ void doOperatorOR(CNODE *n)
 			// drop 'ar'
 			delete ar;
 
-			n->nbranswers++;
+			// n->nbranswers++;
 
 			ll.erase(ll.begin());
 			lr.erase(lr.begin());
@@ -319,6 +319,7 @@ void doOperatorOR(CNODE *n)
 		n->answers.insert(lr.begin(), lr.end());
 		lr.clear();
 	}
+	// n->nbranswers = n->answers.size();
 }
 
 void doOperatorPROX(CNODE *n)
@@ -447,7 +448,7 @@ void doOperatorPROX(CNODE *n)
 			{
 				lastinsert = n->answers.insert(lastinsert, al);
 
-				n->nbranswers++;
+				// n->nbranswers++;
 			}
 			else // no : delete
 			{
@@ -486,7 +487,7 @@ void doOperatorEXCEPT(CNODE *n)
 		{
 			lastinsert = n->answers.insert(lastinsert, al);
 			ll.erase(ll.begin());
-			n->nbranswers++;
+			// n->nbranswers++;
 		}
 		else if(ar->rid > al->rid)
 		{
@@ -542,7 +543,7 @@ void *querytree2(void *_qp)
 		switch(qp->n->type)
 		{
 			case PHRASEA_OP_NULL: // empty query
-				qp->n->nbranswers = 0;
+				// qp->n->nbranswers = 0;
 				qp->n->nleaf = 0;
 				break;
 
@@ -1359,7 +1360,6 @@ void *querytree2(void *_qp)
 					startChrono(chrono);
 
 					doOperatorOR(qp->n);
-
 					qp->n->time_C = stopChrono(chrono);
 				}
 				break;
@@ -1419,7 +1419,8 @@ void *querytree2(void *_qp)
 				add_assoc_double(qp->result, (char *) "time_sqlStore", qp->n->time_sqlStore);
 			if(qp->n->time_sqlFetch != -1)
 				add_assoc_double(qp->result, (char *) "time_sqlFetch", qp->n->time_sqlFetch);
-			add_assoc_long(qp->result, (char *) "nbanswers", qp->n->nbranswers);
+//			add_assoc_long(qp->result, (char *) "nbanswers", qp->n->nbranswers);
+			add_assoc_long(qp->result, (char *) "nbanswers", qp->n->answers.size());
 		}
 	}
 	else

@@ -285,7 +285,7 @@ void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp, bool reverse)
 								}
 								else
 								{
-									qp->n->nbranswers++;
+									// qp->n->nbranswers++;
 
 									// a new rid
 									answer->cid = int_result[SQLFIELD_CID];
