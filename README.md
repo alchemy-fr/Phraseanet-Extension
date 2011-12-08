@@ -1,11 +1,13 @@
-Phraseanet Extension :
+Phraseanet Extension
+====================
 
 To install it :
-```
+
+<pre>
 ./configure
 make
 make install
-```
+</pre>
 
 DO NOT 'phpize' before configure !
 
