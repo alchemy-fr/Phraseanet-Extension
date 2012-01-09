@@ -405,13 +405,16 @@ void doOperatorPROX(CNODE *n)
 			{
 				for(hitr = ar->firsthit; hitr; hitr = hitr->nexthit)
 				{
+// zend_printf("al->rid=%d, ar->rid=%d, hitl=[s:%d, e:%d], hitr=[s:%d, e:%d]\n", al->rid, ar->rid, hitl->iws, hitl->iwe, hitr->iws, hitr->iwe);
 					if(n->type == PHRASEA_OP_BEFORE || n->type == PHRASEA_OP_NEAR)
 					{
 						prox0 = hitr->iws - hitl->iwe;
+// zend_printf("(%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
 						if(prox0 >= 0 && prox0 <= prox + 1)
 						{
+// zend_printf("new CHIT(%d, %d)\n", hitl->iws, hitr->iwe);
 							// if near, allocate a new hit for 'al'
-							if((hit = new CHIT(hitl->iws, hitl->iwe)))
+							if((hit = new CHIT(hitl->iws, hitr->iwe)))
 							{
 								if(!al->firsthit)
 									al->firsthit = hit;
@@ -424,6 +427,7 @@ void doOperatorPROX(CNODE *n)
 					if(n->type == PHRASEA_OP_AFTER || n->type == PHRASEA_OP_NEAR)
 					{
 						prox0 = hitl->iws - hitr->iwe;
+// zend_printf("(%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
 						if(prox0 >= 0 && prox0 <= prox + 1)
 						{
 							// if near, allocate a new hit for 'al'

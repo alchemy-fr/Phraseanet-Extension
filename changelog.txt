@@ -1,3 +1,6 @@
+1.18.0.4
+fix bug : searching more than 2 terms in quotes gave no result
+
 1.18.0.3
 fix bug : searching on collection > 1 was broken
 
