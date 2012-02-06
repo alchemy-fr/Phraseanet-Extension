@@ -117,7 +117,7 @@ ZEND_FUNCTION(phrasea_query2)
 	CHRONO time_phpfct;
 	startChrono(time_phpfct);
 
-	SQLCONN *epublisher = PHRASEA2_G(global_epublisher);
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	SQLRES res(epublisher);
 
 	// replace list of 'local' collections  (base_ids) by list of 'distant' collections (coll ids)

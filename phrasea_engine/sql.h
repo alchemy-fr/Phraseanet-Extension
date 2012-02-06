@@ -8,6 +8,8 @@ class SQLCONN
 {
 	public:
 		SQLCONN(char *host, unsigned int port, char *user, char *passwd, char *dbname);
+		bool connect();
+		void close();
 		~SQLCONN();
 		char *ukey;
 		bool isok();
@@ -26,6 +28,12 @@ class SQLCONN
 		bool connok;
 		MYSQL mysql_conn;
 		int mysql_active_result_id;
+
+		char host[1024];
+		int port;
+		char user[1024];
+		char passwd[1024];
+		char dbname[1024];
 };
 
 class SQLROW

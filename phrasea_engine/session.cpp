@@ -14,7 +14,7 @@ ZEND_FUNCTION(phrasea_clear_cache)
 
 	ZVAL_BOOL(return_value, FALSE);
 
-	SQLCONN *epublisher = PHRASEA2_G(global_epublisher);
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	if(epublisher)
 	{
 		if(sesid != 0)
@@ -59,6 +59,7 @@ ZEND_FUNCTION(phrasea_clear_cache)
 				}
 			}
 		}
+		epublisher->close();
 	}
 }
 
@@ -76,7 +77,7 @@ ZEND_FUNCTION(phrasea_create_session)
 
 	long sesid = -1;
 	char sql[96 + 20 + 1];
-	SQLCONN *epublisher = PHRASEA2_G(global_epublisher);
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	if(epublisher)
 	{
 		sprintf(sql, (char *) "INSERT INTO cache (session_id, nact, lastaccess, session, usr_id) VALUES (null, 0, NOW(), '', %li)", usrid);
@@ -141,6 +142,7 @@ ZEND_FUNCTION(phrasea_create_session)
 							{
 								cache_base = tmp_session->addbase(basid, row->field(1), atoi(row->field(2)), row->field(4), row->field(5), row->field(3), NULL, sbas_id, viewname); //, true);
 							}
+//							conn->close();
 						}
 						else
 						{
@@ -199,21 +201,18 @@ ZEND_FUNCTION(phrasea_open_session)
 	ZVAL_BOOL(return_value, FALSE);
 
 	char sql[65 + 20 + 12 + 20 + 1];
-	SQLCONN *epublisher = PHRASEA2_G(global_epublisher);
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	if(epublisher)
 	{
-		//		if(sesid != 0)
-		//		{
 		sprintf(sql, "UPDATE cache SET nact=nact+1, lastaccess=NOW() WHERE session_id=%li AND usr_id=%li", sesid, usrid);
 		if(epublisher->query(sql))
 		{
 			if(epublisher->affected_rows() == 1)
 			{
-				if(CACHE_SESSION * tmp_session = new CACHE_SESSION(0, epublisher))
+				if(CACHE_SESSION *tmp_session = new CACHE_SESSION(0, epublisher))
 				{
 					if(tmp_session->restore(sesid))
 					{
-// tmp_session->dump();
 						if(tmp_session->get_session_id() == sesid)
 						{
 							if(PHRASEA2_G(global_session))
@@ -226,7 +225,7 @@ ZEND_FUNCTION(phrasea_open_session)
 				}
 			}
 		}
-		//		}
+		epublisher->close();
 	}
 }
 
@@ -243,7 +242,7 @@ ZEND_FUNCTION(phrasea_close_session)
 	ZVAL_BOOL(return_value, FALSE);
 
 	char sql[36 + 20 + 1];
-	SQLCONN *epublisher = PHRASEA2_G(global_epublisher);
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	if(epublisher)
 	{
 		// delete session from cache
@@ -270,6 +269,7 @@ ZEND_FUNCTION(phrasea_close_session)
 				ZVAL_BOOL(return_value, TRUE);
 			}
 		}
+		epublisher->close();
 	}
 }
 

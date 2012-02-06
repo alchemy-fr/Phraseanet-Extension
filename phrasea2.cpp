@@ -94,7 +94,7 @@ PHP_INI_END()
 
 static void php_phrasea2_init_globals(zend_phrasea2_globals *phrasea2_globals)
 {
-	phrasea2_globals->global_epublisher = NULL;
+	phrasea2_globals->epublisher = NULL;
 	phrasea2_globals->global_session = NULL;
 	phrasea2_globals->tempPath[0] = '\0';
 }
@@ -156,7 +156,7 @@ PHP_MINIT_FUNCTION(phrasea2)
 PHP_RINIT_FUNCTION(phrasea2)
 {
 	PHRASEA2_G(global_session) = NULL;
-	PHRASEA2_G(global_epublisher) = NULL;
+	PHRASEA2_G(epublisher) = NULL;
 
 #ifdef PHP_WIN32
 	DWORD tempPathLen;
@@ -184,10 +184,10 @@ PHP_RSHUTDOWN_FUNCTION(phrasea2)
 		delete PHRASEA2_G(global_session);
 		PHRASEA2_G(global_session) = NULL;
 	}
-	if(PHRASEA2_G(global_epublisher))
+	if(PHRASEA2_G(epublisher))
 	{
-		delete PHRASEA2_G(global_epublisher);
-		PHRASEA2_G(global_epublisher) = NULL;
+		delete PHRASEA2_G(epublisher);
+		PHRASEA2_G(epublisher) = NULL;
 	}
 
 	return SUCCESS;
@@ -275,7 +275,7 @@ PHP_FUNCTION(phrasea_info)
 	{
 		add_assoc_bool(return_value, (char *) "temp_writable", false);
 	}
-	SQLCONN *epublisher = PHRASEA2_G(global_epublisher);
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	if(epublisher && epublisher->isok())
 	{
 		add_assoc_string(return_value, (char *) "cnx_ukey", epublisher->ukey, TRUE);
@@ -305,18 +305,30 @@ PHP_FUNCTION(phrasea_conn)
 		RETURN_FALSE;
 	}
 
-	if(PHRASEA2_G(global_epublisher))
-		delete(PHRASEA2_G(global_epublisher));
+	if(zhost_len > 1000)
+		zhost[1000] = '\0';
+	
+	if(zuser_len > 1000)
+		zuser[1000] = '\0';
+	
+	if(zpasswd_len > 1000)
+		zpasswd[1000] = '\0';
+	
+	if(zdbname_len > 1000)
+		zdbname[1000] = '\0';
+	
+	if(PHRASEA2_G(epublisher))
+		delete(PHRASEA2_G(epublisher));
 
-	PHRASEA2_G(global_epublisher) = new SQLCONN(zhost, (int) zport, zuser, zpasswd, zdbname);
-	if(PHRASEA2_G(global_epublisher->isok()))
+	PHRASEA2_G(epublisher) = new SQLCONN(zhost, (int) zport, zuser, zpasswd, zdbname);
+	if(PHRASEA2_G(epublisher->isok()))
 	{
 		RETURN_TRUE;
 	}
 	else
 	{
-		delete(PHRASEA2_G(global_epublisher));
-		PHRASEA2_G(global_epublisher) = NULL;
+		delete(PHRASEA2_G(epublisher));
+		PHRASEA2_G(epublisher) = NULL;
 		RETURN_FALSE;
 	}
 }
@@ -327,6 +339,7 @@ PHP_FUNCTION(phrasea_conn)
  */
 void ftrace(char *fmt, ...)
 {
+	return;
 	FILE * pFile;
 	if((pFile = fopen("/tmp/phrasea_extension.log", "a")))
 	{

@@ -12,9 +12,16 @@ void ftrace(char *fmt, ...);
 
 SQLCONN::SQLCONN(char *host, unsigned int port, char *user, char *passwd, char *dbname)
 {
+ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, dbname);
 	this->ukey = NULL;
 	this->connok = false;
 	this->mysql_active_result_id = 0;
+	
+	strcpy(this->host, host);
+	strcpy(this->user, user);
+	strcpy(this->passwd, passwd);
+	strcpy(this->dbname, dbname);
+	this->port = port;
 
 	mysql_init(&(this->mysql_conn));
 
@@ -25,64 +32,111 @@ SQLCONN::SQLCONN(char *host, unsigned int port, char *user, char *passwd, char *
 #endif
 	my_bool compress = 1;
 	mysql_options(&(this->mysql_conn), MYSQL_OPT_COMPRESS, &compress);
-	if(mysql_real_connect(&(this->mysql_conn), host, user, passwd, dbname, port, NULL, CLIENT_COMPRESS) != NULL)
+	
+	int l = strlen(host) + 1 + 65 + 1 + (dbname ? strlen(dbname) : 0);
+	if(this->ukey = (char *) EMALLOC(l))
+		sprintf(this->ukey, "%s_%u_%s", host, (unsigned int) port, (dbname ? dbname : ""));
+
+//	this->connect();
+}
+
+bool SQLCONN::connect()
+{
+	if(!this->connok)
 	{
-#ifdef MYSQLENCODE
-		if(mysql_set_character_set(&(this->mysql_conn), QUOTE(MYSQLENCODE)) == 0)
-#endif
+ftrace("%s [%d] %s(%s) (was closed) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+		if(mysql_real_connect(&(this->mysql_conn), this->host, this->user, this->passwd, this->dbname, this->port, NULL, CLIENT_COMPRESS) != NULL)
 		{
-			int l = strlen(host) + 1 + 65 + 1 + (dbname ? strlen(dbname) : 0);
-			if(this->ukey = (char *) EMALLOC(l))
+#ifdef MYSQLENCODE
+			if(mysql_set_character_set(&(this->mysql_conn), QUOTE(MYSQLENCODE)) == 0)
+#endif
 			{
-				sprintf(this->ukey, "%s_%u_%s", host, (unsigned int) port, (dbname ? dbname : ""));
 				this->connok = true;
-				//				no need to mysql_select_db since it's done on mysql_real_connect
-				//				if(dbname && (mysql_select_db(&(this->mysql_conn), dbname) != 0))
-				//				{
-				//					// zend_printf("mysql_select_db failed<br>\n");
-				//					mysql_close(&(this->mysql_conn));
-				//					this->connok = false;
-				//				}
 			}
 		}
 	}
+	else
+	{
+ftrace("%s [%d] %s(%s) (was already opened) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+	}
+	return(this->connok);
+}
+
+bool SQLCONN::isok()
+{
+ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+	bool ret = this->connect();
+	this->close();
+	return (ret);
+}
+
+
+void SQLCONN::close()
+{
+ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+	if(this->connok)
+		mysql_close(&(this->mysql_conn));
+	// this->ukey = NULL;
+	this->connok = FALSE;
 }
 
 void *SQLCONN::get_native_conn()
 {
+ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+	this->connect();
+	
 	return (&(this->mysql_conn));
 }
 
 SQLCONN::~SQLCONN()
 {
+ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+//	if(this->ukey)
+//		EFREE(this->ukey);
+//	if(this->connok)
+//		mysql_close(&(this->mysql_conn));
+	this->close();
 	if(this->ukey)
 		EFREE(this->ukey);
-	if(this->connok)
-		mysql_close(&(this->mysql_conn));
 }
 
 int SQLCONN::escape_string(char *str, int len, char *outbuff)
 {
+ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+	int ret;
+	this->connect();
+	
 	if(len == -1)
 		len = strlen(str);
 	if(outbuff == NULL)
 		return ((2 * len) + 1); // no buffer allocated : simply return the needed size
-	return (mysql_real_escape_string(&(this->mysql_conn), outbuff, str, len));
+	ret = mysql_real_escape_string(&(this->mysql_conn), outbuff, str, len);
+	
+	this->close();
+	return(ret);
 }
 
 bool SQLCONN::query(char *sql, int len)
 {
+ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+	bool ret = false;
+	this->connect();
+
 	if(this->connok)
 	{
 		if(len == -1)
 			len = strlen(sql);
-		return ( (mysql_real_query(&(this->mysql_conn), sql, len)) == 0);
+		ret = (mysql_real_query(&(this->mysql_conn), sql, len) == 0);
+//		this->close();
 	}
-	return (false);
+	return (ret);
 }
 
 const char *SQLCONN::error()
 {
+ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+	this->connect();
+
 	if(this->connok)
 		return (mysql_error(&(this->mysql_conn)));
 
@@ -91,19 +145,40 @@ const char *SQLCONN::error()
 
 my_ulonglong SQLCONN::affected_rows()
 {
+ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+	this->connect();
+
 	if(this->connok)
 		return (mysql_affected_rows(&(this->mysql_conn)));
 
 	return (long) (-1);
 }
 
-bool SQLCONN::isok()
+// ============================================================================
+
+
+SQLRES::SQLRES(SQLCONN *parent_conn)
 {
-	return (this->connok);
+ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
+	parent_conn->connect();
+	
+	this->parent_conn = parent_conn;
+	this->res = NULL;
+	this->sqlrow.parent_res = this;
+	this->ncols = 0;
+	this->ncols = 0;
+}
+
+SQLRES::~SQLRES()
+{
+ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
+	if(this->res)
+		mysql_free_result(this->res);
 }
 
 bool SQLRES::query(char *sql)
 {
+ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	if(mysql_query(&(this->parent_conn->mysql_conn), sql) == 0)
 	{
 		if(this->res)
@@ -124,26 +199,13 @@ bool SQLRES::query(char *sql)
 
 int SQLRES::get_nrows()
 {
+ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	return (this->nrows);
-}
-
-SQLRES::SQLRES(SQLCONN *parent_conn)
-{
-	this->parent_conn = parent_conn;
-	this->res = NULL;
-	this->sqlrow.parent_res = this;
-	this->ncols = 0;
-	this->ncols = 0;
-}
-
-SQLRES::~SQLRES()
-{
-	if(this->res)
-		mysql_free_result(this->res);
 }
 
 SQLROW *SQLRES::fetch_row()
 {
+ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	if(this->parent_conn->connok && this->res)
 	{
 		if((this->sqlrow.row = mysql_fetch_row(this->res)))
@@ -154,11 +216,14 @@ SQLROW *SQLRES::fetch_row()
 
 unsigned long *SQLRES::fetch_lengths()
 {
+ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	if(this->parent_conn->connok && this->res)
 		return (mysql_fetch_lengths(this->res));
 
 	return (NULL);
 }
+
+// ===============================================================================
 
 SQLROW::SQLROW()
 {
@@ -187,8 +252,10 @@ char *SQLROW::field(int n)
 
 void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp, bool reverse)
 {
-	CHRONO chrono;
+	this->connect();
 
+	CHRONO chrono;
+	
 	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
 
 	mysql_thread_init();

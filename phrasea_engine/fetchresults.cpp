@@ -57,7 +57,7 @@ ZEND_FUNCTION(phrasea_fetch_results)
 		}
 	}
 
-	SQLCONN *epublisher = PHRASEA2_G(global_epublisher);
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	char tmpstr[1024]; // buffer to format short messages (error messages...)
 	CHRONO chrono;
 
@@ -243,6 +243,7 @@ ZEND_FUNCTION(phrasea_fetch_results)
 									{
 ftrace("LINE %d ERR: %s\n", __LINE__, conn->error());
 									}
+//									conn->close();
 								}
 							}
 							add_next_index_zval(zanswers, zanswer);
