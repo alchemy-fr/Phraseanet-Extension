@@ -124,7 +124,7 @@ ZEND_FUNCTION(phrasea_fetch_results)
 						add_assoc_double(return_value, (char *) "time_readCache", stopChrono(chrono));
 
 						char hex_status[16 + 1];
-						unsigned long long llstatus;
+//						unsigned long long llstatus;
 
 						zval *zanswers;
 						MAKE_STD_ZVAL(zanswers);
@@ -161,8 +161,7 @@ ZEND_FUNCTION(phrasea_fetch_results)
 											add_assoc_double(zanswer, (char *) "time_xmlFetch", stopChrono(chrono));
 
 											unsigned long *siz = res.fetch_lengths();
-											add_assoc_long(zanswer, (char *) "parent_record_id", atoll(row->field(1)));
-
+											add_assoc_long(zanswer, (char *) "parent_record_id", atol(row->field(1)));
 											memset(hex_status, '0', 17);
 											memcpy(hex_status + (16 - siz[2]), row->field(2), siz[2]);
 											add_assoc_stringl(zanswer, (char *) "status", hex_status, 16, TRUE);

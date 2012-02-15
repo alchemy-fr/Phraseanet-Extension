@@ -37,7 +37,7 @@
 #include "zend_exceptions.h"
 
 #ifdef PHP_WIN32
-# include <winsock.h>
+# include <winsock2.h>
 # define signal(a, b) NULL
 #elif defined(NETWARE)
 # include <sys/socket.h>

@@ -5,9 +5,11 @@
 
 #include "cquerytree2parm.h"
 
+#include "thread.h"
+
 CNODE *qtree2tree(zval **root, int depth); // in qtree.cpp
 void freetree(CNODE *n); // in qtree.cpp
-void *querytree2(void *_qp); // in qtree.cpp
+THREAD_ENTRYPOINT querytree2(void *_qp); // in qtree.cpp
 
 bool pcanswercomp_int_asc(PCANSWER lhs, PCANSWER rhs)
 {
@@ -214,13 +216,22 @@ ZEND_FUNCTION(phrasea_query2)
 
 						// here we query phrasea !
 
-						pthread_mutex_t sqlmutex;
-						pthread_mutex_init(&sqlmutex, NULL);
-
+#if defined(PHP_WIN32) && 0
+						Cquerytree2Parm qp(query, 0, conn,            return_value, sqltrec, pzsortfield, sortmethod);
+#else
+						CMutex sqlmutex;
 						Cquerytree2Parm qp(query, 0, conn, &sqlmutex, return_value, sqltrec, pzsortfield, sortmethod);
-						querytree2((void *) &qp);
-
-						pthread_mutex_destroy(&sqlmutex);
+#endif
+						if(!mysql_thread_safe())
+						{
+							querytree2((void *) &qp);
+						}
+						else
+						{
+							ATHREAD thread;
+							THREAD_START(thread, querytree2, &qp);
+							THREAD_JOIN(thread);
+						}
 
 						conn->query("DROP TABLE _tmpmask");
 
@@ -334,7 +345,7 @@ ZEND_FUNCTION(phrasea_query2)
 									if(pmset)
 									{
 										// dump the sorted multiset to cache
-										std::multiset<PCANSWER>::iterator ipmset;
+										std::multiset<PCANSWER, bool(*)(PCANSWER, PCANSWER)>::iterator ipmset;
 										for(ipmset = pmset->begin(); ipmset != pmset->end(); ipmset++)
 										{
 											answer = *(ipmset);

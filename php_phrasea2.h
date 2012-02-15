@@ -11,13 +11,6 @@ ZEND_BEGIN_MODULE_GLOBALS(phrasea2)
 	SQLCONN *epublisher;
 	CACHE_SESSION *global_session;
 	char tempPath[1024];				// tmp dir
-/*
-	char host[1024];
-	int port;
-	char user[1024];
-	char passwd[1024];
-	char dbname[1024];
-*/
 ZEND_END_MODULE_GLOBALS(phrasea2)
 
 #ifdef ZTS

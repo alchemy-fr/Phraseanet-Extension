@@ -1,6 +1,7 @@
-#include <sys/types.h>
-#include <sys/timeb.h>
-#include <math.h>
+// #include <sys/types.h>
+// #include <sys/timeb.h>
+// #include <math.h>
+#include <string>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

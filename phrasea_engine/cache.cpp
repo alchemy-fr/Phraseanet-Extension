@@ -648,8 +648,8 @@ void CACHE_SESSION::dump()
 void CACHE_SESSION::serialize_php(zval *result) //, bool everything)
 {
   CACHE_BASE *cb;
-  CACHE_COLL *cc;
-  bool basereg;
+//  CACHE_COLL *cc;
+//  bool basereg;
   zval *zbaselist;
 	array_init(result);
 	add_assoc_long(result, (char *)"session_id", this->session_id);

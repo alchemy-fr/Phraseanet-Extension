@@ -1,4 +1,7 @@
+#ifdef PHP_WIN32
+#else
 #include <pthread.h>
+#endif
 
 #include "base_header.h"
 #include "phrasea_clock_t.h"
@@ -6,6 +9,8 @@
 #include "../php_phrasea2.h"
 
 #include "cquerytree2parm.h"
+
+#include "thread.h"
 
 void freetree(CNODE *n);
 
@@ -17,7 +22,7 @@ char *kwclause(KEYWORD *k)
 	KEYWORD *k0 = k;
 	char *p;
 	int l = 0;
-	char *s = NULL, c1, c2;
+	char *s = NULL; // , c1, c2;
 	bool hasmeta;
 	int i;
 
@@ -518,7 +523,7 @@ void doOperatorEXCEPT(CNODE *n)
 	}
 }
 
-void *querytree2(void *_qp)
+THREAD_ENTRYPOINT querytree2(void *_qp)
 {
 	char sql[102400];
 	char *p;
@@ -528,8 +533,10 @@ void *querytree2(void *_qp)
 	zval *objr = NULL;
 	CHRONO chrono_all;
 
+#ifndef PHP_WIN32
 	pthread_attr_t thread_attr;
-	pthread_t threadl, threadr;
+#endif
+	ATHREAD threadl, threadr;
 	Cquerytree2Parm *qp = (Cquerytree2Parm *) _qp;
 
 	TSRMLS_FETCH();
@@ -1251,7 +1258,6 @@ void *querytree2(void *_qp)
 
 					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod);
 					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod);
-
 					if(!mysql_thread_safe())
 					{
 						querytree2((void *) &qpl);
@@ -1259,13 +1265,10 @@ void *querytree2(void *_qp)
 					}
 					else
 					{
-						pthread_attr_init(&thread_attr);
-						pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
-						pthread_create(&threadl, &thread_attr, querytree2, (void *) &qpl); // (thread,attr,start_routine,arg)
-						pthread_create(&threadr, &thread_attr, querytree2, (void *) &qpr); // (thread,attr,start_routine,arg)
-						pthread_attr_destroy(&thread_attr);
-						pthread_join(threadl, NULL);
-						pthread_join(threadr, NULL);
+						THREAD_START(threadl, querytree2, &qpl);
+						THREAD_START(threadr, querytree2, &qpr);
+						THREAD_JOIN(threadl);
+						THREAD_JOIN(threadr);
 					}
 
 					if(qp->result)
@@ -1295,7 +1298,6 @@ void *querytree2(void *_qp)
 
 					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod);
 					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod);
-
 					if(!mysql_thread_safe())
 					{
 						querytree2((void *) &qpl);
@@ -1303,13 +1305,10 @@ void *querytree2(void *_qp)
 					}
 					else
 					{
-						pthread_attr_init(&thread_attr);
-						pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
-						pthread_create(&threadl, &thread_attr, querytree2, (void *) &qpl); // (thread,attr,start_routine,arg)
-						pthread_create(&threadr, &thread_attr, querytree2, (void *) &qpr); // (thread,attr,start_routine,arg)
-						pthread_attr_destroy(&thread_attr);
-						pthread_join(threadl, NULL);
-						pthread_join(threadr, NULL);
+						THREAD_START(threadl, querytree2, &qpl);
+						THREAD_START(threadr, querytree2, &qpr);
+						THREAD_JOIN(threadl);
+						THREAD_JOIN(threadr);
 					}
 
 					if(qp->result)
@@ -1337,7 +1336,6 @@ void *querytree2(void *_qp)
 
 					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod);
 					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod);
-
 					if(!mysql_thread_safe())
 					{
 						querytree2((void *) &qpl);
@@ -1345,13 +1343,10 @@ void *querytree2(void *_qp)
 					}
 					else
 					{
-						pthread_attr_init(&thread_attr);
-						pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
-						pthread_create(&threadl, &thread_attr, querytree2, (void *) &qpl); // (thread,attr,start_routine,arg)
-						pthread_create(&threadr, &thread_attr, querytree2, (void *) &qpr); // (thread,attr,start_routine,arg)
-						pthread_attr_destroy(&thread_attr);
-						pthread_join(threadl, NULL);
-						pthread_join(threadr, NULL);
+						THREAD_START(threadl, querytree2, &qpl);
+						THREAD_START(threadr, querytree2, &qpr);
+						THREAD_JOIN(threadl);
+						THREAD_JOIN(threadr);
 					}
 
 					if(qp->result)
@@ -1377,7 +1372,6 @@ void *querytree2(void *_qp)
 
 					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod);
 					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod);
-
 					if(!mysql_thread_safe())
 					{
 						querytree2((void *) &qpl);
@@ -1385,13 +1379,10 @@ void *querytree2(void *_qp)
 					}
 					else
 					{
-						pthread_attr_init(&thread_attr);
-						pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
-						pthread_create(&threadl, &thread_attr, querytree2, (void *) &qpl); // (thread,attr,start_routine,arg)
-						pthread_create(&threadr, &thread_attr, querytree2, (void *) &qpr); // (thread,attr,start_routine,arg)
-						pthread_attr_destroy(&thread_attr);
-						pthread_join(threadl, NULL);
-						pthread_join(threadr, NULL);
+						THREAD_START(threadl, querytree2, &qpl);
+						THREAD_START(threadr, querytree2, &qpr);
+						THREAD_JOIN(threadl);
+						THREAD_JOIN(threadr);
 					}
 
 					if(qp->result)
@@ -1423,7 +1414,6 @@ void *querytree2(void *_qp)
 				add_assoc_double(qp->result, (char *) "time_sqlStore", qp->n->time_sqlStore);
 			if(qp->n->time_sqlFetch != -1)
 				add_assoc_double(qp->result, (char *) "time_sqlFetch", qp->n->time_sqlFetch);
-//			add_assoc_long(qp->result, (char *) "nbanswers", qp->n->nbranswers);
 			add_assoc_long(qp->result, (char *) "nbanswers", qp->n->answers.size());
 		}
 	}
@@ -1431,6 +1421,9 @@ void *querytree2(void *_qp)
 	{
 		// zend_printf("querytree : null node\n");
 	}
+
+	if(mysql_thread_safe())
+		THREAD_EXIT(0);
 }
 
 void freetree(CNODE *n)

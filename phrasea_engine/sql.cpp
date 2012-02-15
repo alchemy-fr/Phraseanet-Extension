@@ -1,8 +1,12 @@
+#ifdef PHP_WIN32
+#include <winsock2.h>
+#endif
 #include <mysql.h>
 
 #include "base_header.h"
 #include "phrasea_clock_t.h"
 
+#include "mutex.h"
 #include "sql.h"
 
 void ftrace(char *fmt, ...);
@@ -267,9 +271,10 @@ void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp, bool reverse)
 	MYSQL_STMT *stmt;
 	if((stmt = mysql_stmt_init(&(this->mysql_conn))))
 	{
-		pthread_mutex_lock(qp->sqlmutex);
+#ifndef PHP_WIN32
+		qp->sqlmutex->lock();
 		bool mutex_locked = true;
-
+#endif
 		if(mysql_stmt_prepare(stmt, sql, strlen(sql)) == 0)
 		{
 			// Execute the SELECT query
@@ -369,7 +374,11 @@ void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp, bool reverse)
 												answer->sortkey.s = new std::string(skey);
 												break;
 											case SORTMETHOD_INT:
+#ifdef PHP_WIN32
+												answer->sortkey.l = _strtoui64(skey, NULL, 10);
+#else
 												answer->sortkey.l = atoll(skey);
+#endif
 												break;
 										}
 									}
@@ -424,9 +433,10 @@ void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp, bool reverse)
 		}
 
 		mysql_stmt_close(stmt);
-
+#ifndef PHP_WIN32
 		if(mutex_locked)
-			pthread_mutex_unlock(qp->sqlmutex);
+			qp->sqlmutex->unlock();
+#endif
 	}
 
 	mysql_thread_end();

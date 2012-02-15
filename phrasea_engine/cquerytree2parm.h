@@ -1,6 +1,8 @@
 #ifndef CQUERYTREE2PARM_H
 #define CQUERYTREE2PARM_H 1
 
+#include "mutex.h"
+
 class SQLCONN;
 
 class Cquerytree2Parm
@@ -9,12 +11,16 @@ class Cquerytree2Parm
 		CNODE *n;
 		int depth;
 		SQLCONN *sqlconn;
-		pthread_mutex_t *sqlmutex;
 		zval *result;
 		char *sqltrec;
 		char **psortField;
 		int sortMethod;
-		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, pthread_mutex_t *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod);
+#if defined(PHP_WIN32) && 0
+		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn                  , zval *result, char *sqltrec, char **psortField, int sortMethod);
+#else
+		CMutex *sqlmutex;
+		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod);
+#endif
 };
 
 #endif
