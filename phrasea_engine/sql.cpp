@@ -16,7 +16,7 @@ void ftrace(char *fmt, ...);
 
 SQLCONN::SQLCONN(char *host, unsigned int port, char *user, char *passwd, char *dbname)
 {
-ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, dbname);
+// ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, dbname);
 	this->ukey = NULL;
 	this->connok = false;
 	this->mysql_active_result_id = 0;
@@ -28,7 +28,6 @@ ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, dbname);
 	this->port = port;
 
 	mysql_init(&(this->mysql_conn));
-
 #ifdef MYSQL_OPT_RECONNECT
 	my_bool reconnect = 1;
 	mysql_options(&(this->mysql_conn), MYSQL_OPT_RECONNECT, &reconnect);
@@ -44,11 +43,24 @@ ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, dbname);
 //	this->connect();
 }
 
+SQLCONN::~SQLCONN()
+{
+// ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+//	if(this->ukey)
+//		EFREE(this->ukey);
+//	if(this->connok)
+//		mysql_close(&(this->mysql_conn));
+	this->close();
+	if(this->ukey)
+		EFREE(this->ukey);
+}
+
+
 bool SQLCONN::connect()
 {
 	if(!this->connok)
 	{
-ftrace("%s [%d] %s(%s) (was closed) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+// ftrace("%s [%d] %s(%s) (was closed) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 		if(mysql_real_connect(&(this->mysql_conn), this->host, this->user, this->passwd, this->dbname, this->port, NULL, CLIENT_COMPRESS) != NULL)
 		{
 #ifdef MYSQLENCODE
@@ -61,14 +73,14 @@ ftrace("%s [%d] %s(%s) (was closed) \n", __FILE__, __LINE__, __FUNCTION__, this-
 	}
 	else
 	{
-ftrace("%s [%d] %s(%s) (was already opened) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+// ftrace("%s [%d] %s(%s) (was already opened) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	}
 	return(this->connok);
 }
 
 bool SQLCONN::isok()
 {
-ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+// ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	bool ret = this->connect();
 	this->close();
 	return (ret);
@@ -77,7 +89,7 @@ ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 
 void SQLCONN::close()
 {
-ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+// ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	if(this->connok)
 		mysql_close(&(this->mysql_conn));
 	// this->ukey = NULL;
@@ -86,27 +98,15 @@ ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 
 void *SQLCONN::get_native_conn()
 {
-ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+// ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	this->connect();
 	
 	return (&(this->mysql_conn));
 }
 
-SQLCONN::~SQLCONN()
-{
-ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
-//	if(this->ukey)
-//		EFREE(this->ukey);
-//	if(this->connok)
-//		mysql_close(&(this->mysql_conn));
-	this->close();
-	if(this->ukey)
-		EFREE(this->ukey);
-}
-
 int SQLCONN::escape_string(char *str, int len, char *outbuff)
 {
-ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+// ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	int ret;
 	this->connect();
 	
@@ -122,7 +122,7 @@ ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 
 bool SQLCONN::query(char *sql, int len)
 {
-ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+// ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	bool ret = false;
 	this->connect();
 
@@ -138,7 +138,7 @@ ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 
 const char *SQLCONN::error()
 {
-ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+// ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	this->connect();
 
 	if(this->connok)
@@ -149,7 +149,7 @@ ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 
 my_ulonglong SQLCONN::affected_rows()
 {
-ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
+// ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	this->connect();
 
 	if(this->connok)
@@ -163,7 +163,7 @@ ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 
 SQLRES::SQLRES(SQLCONN *parent_conn)
 {
-ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
+// ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	parent_conn->connect();
 	
 	this->parent_conn = parent_conn;
@@ -175,14 +175,14 @@ ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 
 SQLRES::~SQLRES()
 {
-ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
+// ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	if(this->res)
 		mysql_free_result(this->res);
 }
 
 bool SQLRES::query(char *sql)
 {
-ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
+// ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	if(mysql_query(&(this->parent_conn->mysql_conn), sql) == 0)
 	{
 		if(this->res)
@@ -203,13 +203,13 @@ ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 
 int SQLRES::get_nrows()
 {
-ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
+// ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	return (this->nrows);
 }
 
 SQLROW *SQLRES::fetch_row()
 {
-ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
+// ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	if(this->parent_conn->connok && this->res)
 	{
 		if((this->sqlrow.row = mysql_fetch_row(this->res)))
@@ -220,7 +220,7 @@ ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 
 unsigned long *SQLRES::fetch_lengths()
 {
-ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
+// ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	if(this->parent_conn->connok && this->res)
 		return (mysql_fetch_lengths(this->res));
 

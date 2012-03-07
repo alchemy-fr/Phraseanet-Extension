@@ -129,10 +129,10 @@ dnl  PHP_EXPAND_PATH($MYSQL_INCLUDE, MYSQL_INCLUDE)
 
   dnl ****************** tell we will compile .cpp files *****************
   PHP_REQUIRE_CXX()
-  CPPFLAGS=-Wno-write-strings
+  CPPFLAGS=-Wno-write-strings -g3 -gdwarf2
 
   dnl ****************** tell we will link with g++ *****************
-  CC=g++
+  CC=g++ -g3 -gdwarf2
  
   PHP_ADD_LIBRARY_WITH_PATH($MYSQL_LIBNAME, $MYSQL_LIB_DIR, PHRASEA2_SHARED_LIBADD)
   PHP_SUBST(PHRASEA2_SHARED_LIBADD)
@@ -146,5 +146,6 @@ dnl  PHP_EXPAND_PATH($MYSQL_INCLUDE, MYSQL_INCLUDE)
 								phrasea_engine/session.cpp \
 								phrasea_engine/sql.cpp \
 								phrasea_engine/cquerytree2parm.cpp \
+								phrasea_engine/mutex.cpp \
 				, $ext_shared, [], -DCOMPILE_DL_PHRASEA2 -DMYSQLENCODE=utf8)
 fi

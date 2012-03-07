@@ -498,8 +498,11 @@ bool CACHE_SESSION::save()
 			binlen = this->get_binsize();		// get size needed
 			if(binbuff = (char *)EMALLOC(binlen))
 			{
+				memset(binbuff, 0, binlen);
 				binlen = this->serialize_bin((long *)binbuff);		// serialize and get the real size
 
+				memset(bind, 0, sizeof(bind));
+				
 				bind[0].buffer_type = MYSQL_TYPE_VAR_STRING;
 				bind[0].buffer = binbuff;
 				bind[0].buffer_length = binlen;

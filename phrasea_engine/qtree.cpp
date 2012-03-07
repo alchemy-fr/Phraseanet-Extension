@@ -525,6 +525,10 @@ void doOperatorEXCEPT(CNODE *n)
 
 THREAD_ENTRYPOINT querytree2(void *_qp)
 {
+	if(mysql_thread_safe())
+		mysql_thread_init();
+
+	
 	char sql[102400];
 	char *p;
 	int l;
@@ -1423,7 +1427,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 	}
 
 	if(mysql_thread_safe())
+	{
+		mysql_thread_end();
 		THREAD_EXIT(0);
+	}
 }
 
 void freetree(CNODE *n)

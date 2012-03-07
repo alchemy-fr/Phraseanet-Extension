@@ -97,15 +97,8 @@ static void php_phrasea2_init_globals(zend_phrasea2_globals *phrasea2_globals)
 {
 	phrasea2_globals->epublisher = NULL;
 	phrasea2_globals->global_session = NULL;
-	phrasea2_globals->tempPath[0] = '\0';
+	phrasea2_globals->ztempPath[0] = '\0';
 }
-/*
-#ifdef PHP_WIN32
-char tempPathBuffer[1024];
-#else
-char *tempPathBuffer = "/tmp/";
-#endif
- */
 // -----------------------------------------------------------------------------
 // option -Wno-write-strings to gcc prevents warnings on this section
 
@@ -149,7 +142,9 @@ PHP_MINIT_FUNCTION(phrasea2)
 	// mysql_thread_init();
 #endif
 #endif
-
+	mysql_library_init(0, NULL, NULL);
+//	char *bug1 = (char*)(malloc(666));
+//	char *bug2 = (char*)(EMALLOC(333));
 	return SUCCESS;
 }
 // -----------------------------------------------------------------------------
@@ -196,6 +191,7 @@ PHP_RSHUTDOWN_FUNCTION(phrasea2)
 
 PHP_MSHUTDOWN_FUNCTION(phrasea2)
 {
+	mysql_library_end();
 	UNREGISTER_INI_ENTRIES();
 	return SUCCESS;
 }
@@ -214,7 +210,7 @@ PHP_MINFO_FUNCTION(phrasea2)
 	else
 		php_info_print_table_row(2, "MYSQL thead safe", "NO");
 
-	php_info_print_table_row(2, "NO PostgreSQL support", "");
+//	php_info_print_table_row(2, "NO PostgreSQL support", "");
 
 #ifdef MYSQLENCODE
 	php_info_print_table_row(2, "SQL connection charset", QUOTE(MYSQLENCODE));
@@ -234,14 +230,15 @@ PHP_MINFO_FUNCTION(phrasea2)
 
 	if((fname = (char *) EMALLOC(l)))
 	{
-		sprintf(fname, "%s_phrasea.%s.test.%d.bin", PHRASEA2_G(tempPath), "fakeukey", 666);
+		sprintf(fname, "%s_phrasea.%s.test.%d.bin", PHRASEA2_G(tempPath), "fakeukey", 0);
 		if((fp_test = fopen(fname, "ab")))
 		{
 			fclose(fp_test);
 			test = true;
 		}
 
-		php_info_print_table_row(3, "temp DIR", PHRASEA2_G(tempPath), (test ? "OK" : "BAD"));
+//		php_info_print_table_row(3, "temp DIR", PHRASEA2_G(tempPath), (test ? "OK" : "BAD"));
+		php_info_print_table_row(3, "temp DIR", fname, (test ? "OK" : "BAD"));
 
 		EFREE(fname);
 	}
@@ -305,7 +302,6 @@ PHP_FUNCTION(phrasea_conn)
 	{
 		RETURN_FALSE;
 	}
-
 	if(zhost_len > 1000)
 		zhost[1000] = '\0';
 	
@@ -317,9 +313,6 @@ PHP_FUNCTION(phrasea_conn)
 	
 	if(zdbname_len > 1000)
 		zdbname[1000] = '\0';
-	
-	if(PHRASEA2_G(epublisher))
-		delete(PHRASEA2_G(epublisher));
 
 	PHRASEA2_G(epublisher) = new SQLCONN(zhost, (int) zport, zuser, zpasswd, zdbname);
 	if(PHRASEA2_G(epublisher->isok()))

@@ -5,6 +5,7 @@
 
 #include "cquerytree2parm.h"
 
+#include "mutex.h"
 #include "thread.h"
 
 CNODE *qtree2tree(zval **root, int depth); // in qtree.cpp
@@ -163,7 +164,7 @@ ZEND_FUNCTION(phrasea_query2)
 
 						// build the sql that filter collections
 						std::stringstream sqlcoll;
-						sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` SELECT coll_id, mask_xor, mask_and FROM collusr WHERE site='"
+						sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` (KEY(coll_id)) TYPE MEMORY SELECT coll_id, mask_xor, mask_and FROM collusr WHERE site='"
 							<< zsite << "' AND usr_id=" << userid << " AND coll_id";
 						if(t_collid.size() == 1)
 						{
@@ -178,7 +179,7 @@ ZEND_FUNCTION(phrasea_query2)
 							sqlcoll << ')';
 						}
 						conn->query((char *) (sqlcoll.str().c_str())); // CREATE _tmpmask ...
-						conn->query("CREATE INDEX coll_id ON _tmpmask(coll_id)");
+						// conn->query("CREATE INDEX coll_id ON _tmpmask(coll_id)");
 
 						// small sql that joins record and collusr
 						char *sqltrec = "(record)";
@@ -215,13 +216,9 @@ ZEND_FUNCTION(phrasea_query2)
 						char **pzsortfield = &zsortfield; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
 
 						// here we query phrasea !
-
-#if defined(PHP_WIN32) && 0
-						Cquerytree2Parm qp(query, 0, conn,            return_value, sqltrec, pzsortfield, sortmethod);
-#else
+// pthread_mutex_t sqlmutex;
 						CMutex sqlmutex;
 						Cquerytree2Parm qp(query, 0, conn, &sqlmutex, return_value, sqltrec, pzsortfield, sortmethod);
-#endif
 						if(!mysql_thread_safe())
 						{
 							querytree2((void *) &qp);

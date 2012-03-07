@@ -3,9 +3,11 @@
 
 #ifdef PHP_WIN32
 #include <windows.h>
+#else
+#include <pthread.h>
 #endif
 
-#include <stdio.h>
+// #include <stdio.h>
 
 class CMutex
 {

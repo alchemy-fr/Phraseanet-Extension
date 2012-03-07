@@ -1,3 +1,6 @@
+1.18.2.1
+change creation on _tmpmask : key(coll_id) + type memory (thank's to enovance / skysql)
+
 1.18.2.0
 restore win32 build
 

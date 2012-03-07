@@ -23,7 +23,7 @@ void CMutex::lock()
 #ifdef PHP_WIN32
 	WaitForSingleObject(this->sqlmutex, INFINITE);
 #else
-	pthread_mutex_lock(this->sqlmutex);
+	pthread_mutex_lock(&(this->sqlmutex));
 #endif
 }
 
@@ -32,6 +32,6 @@ void CMutex::unlock()
 #ifdef PHP_WIN32
 	ReleaseMutex(this->sqlmutex);
 #else
-	pthread_mutex_unlock(this->sqlmutex);
+	pthread_mutex_unlock(&(this->sqlmutex));
 #endif
 }

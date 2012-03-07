@@ -10,7 +10,7 @@
 ZEND_BEGIN_MODULE_GLOBALS(phrasea2)
 	SQLCONN *epublisher;
 	CACHE_SESSION *global_session;
-	char tempPath[1024];				// tmp dir
+ 	char tempPath[1024];				// tmp dir
 ZEND_END_MODULE_GLOBALS(phrasea2)
 
 #ifdef ZTS
