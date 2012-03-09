@@ -2,6 +2,7 @@
 .deps
 .project
 .cproject
+autom4te.cache
 /nbproject/*
 /phrasea_engine/.libs/
 /.libs/
