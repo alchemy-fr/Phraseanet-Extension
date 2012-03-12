@@ -1,3 +1,6 @@
+1.18.2.2
+fix err msg compiling phrasea2.cpp
+
 1.18.2.1
 change creation on _tmpmask : key(coll_id) + type memory (thank's to enovance / skysql)
 
