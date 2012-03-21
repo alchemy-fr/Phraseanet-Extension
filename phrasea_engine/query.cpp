@@ -39,7 +39,7 @@ bool pcanswercomp_sha(PCANSWER lhs, PCANSWER rhs)
 
 ZEND_FUNCTION(phrasea_query2)
 {
-	if(ZEND_NUM_ARGS() < 8 || ZEND_NUM_ARGS() > 9)
+	if(ZEND_NUM_ARGS() < 8 || ZEND_NUM_ARGS() > 10)
 		WRONG_PARAM_COUNT;
 
 	long session, sbasid;
@@ -54,6 +54,8 @@ ZEND_FUNCTION(phrasea_query2)
 
 	char *zsortfield = NULL;
 	int zsortfieldlen;
+	
+	zend_bool zbusiness = false;
 
 	int sortorder = 0; // no sort
 	int sortmethod = SORTMETHOD_STR;
@@ -71,8 +73,9 @@ ZEND_FUNCTION(phrasea_query2)
 			if(zsitelen > 32)
 				zsite[32] = '\0';
 			break;
-		case 9: // session, baseid, collist, quarray, site, userid, noCache, multidocMode, sortfield
-			if(zend_parse_parameters(9 TSRMLS_CC, (char *) "llaaslbls", &session, &sbasid, &zcolllist, &zqarray, &zsite, &zsitelen, &userid, &noCache, &multidocMode, &zsortfield, &zsortfieldlen) == FAILURE)
+		case 9:  // session, baseid, collist, quarray, site, userid, noCache, multidocMode, sortfield
+		case 10: // session, baseid, collist, quarray, site, userid, noCache, multidocMode, sortfield, search_business
+			if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, (char *) "llaaslbls|b", &session, &sbasid, &zcolllist, &zqarray, &zsite, &zsitelen, &userid, &noCache, &multidocMode, &zsortfield, &zsortfieldlen, &zbusiness) == FAILURE)
 			{
 				RETURN_FALSE;
 			}
@@ -158,7 +161,7 @@ ZEND_FUNCTION(phrasea_query2)
 				{
 					// on se connecte sur la base distante
 					SQLCONN *conn = new SQLCONN(row->field(1), atoi(row->field(2)), row->field(5), row->field(6), row->field(4));
-					if(conn && conn->isok())
+					if(conn && conn->connect())
 					{
 						add_assoc_double(return_value, (char *) "time_connect", stopChrono(time_connect));
 
@@ -218,16 +221,30 @@ ZEND_FUNCTION(phrasea_query2)
 						// here we query phrasea !
 // pthread_mutex_t sqlmutex;
 						CMutex sqlmutex;
-						Cquerytree2Parm qp(query, 0, conn, &sqlmutex, return_value, sqltrec, pzsortfield, sortmethod);
-						if(!mysql_thread_safe())
+						Cquerytree2Parm qp(query, 0, conn, &sqlmutex, return_value, sqltrec, pzsortfield, sortmethod, (zbusiness != false));
+						if(MYSQL_THREAD_SAFE)
 						{
-							querytree2((void *) &qp);
-						}
-						else
-						{
+#ifdef WIN32
+						HANDLE  hThread;
+						unsigned dwThreadId;
+						hThread = (HANDLE)_beginthreadex( 
+							NULL,                   // default security attributes
+							0,                      // use default stack size  
+							querytree2,			    // thread function name
+							(void*)&qp,             // argument to thread function 
+							0,                      // use default creation flags 
+							&dwThreadId);   // returns the thread identifier 
+						WaitForSingleObject(hThread, INFINITE);
+						CloseHandle(hThread);
+#else
 							ATHREAD thread;
 							THREAD_START(thread, querytree2, &qp);
 							THREAD_JOIN(thread);
+#endif
+						}
+						else
+						{
+							querytree2((void *) &qp);
 						}
 
 						conn->query("DROP TABLE _tmpmask");

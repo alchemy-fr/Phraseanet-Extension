@@ -44,6 +44,7 @@
 #include "php_phrasea2.h"
 
 #include "phrasea_engine/trace_memory.h"
+#include "phrasea_engine/ftrace.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(phrasea2)
 
@@ -255,6 +256,7 @@ PHP_FUNCTION(phrasea_info)
 
 	char fname[1000];
 	FILE *fp_test;
+	SQLCONN *epublisher = NULL;
 	
 	array_init(return_value);
 	add_assoc_string(return_value, (char *) "version", QUOTE(PHDOTVERSION), TRUE);
@@ -273,10 +275,19 @@ PHP_FUNCTION(phrasea_info)
 	{
 		add_assoc_bool(return_value, (char *) "temp_writable", false);
 	}
-	SQLCONN *epublisher = PHRASEA2_G(epublisher);
-	if(epublisher && epublisher->isok())
+	
+	epublisher = PHRASEA2_G(epublisher);
+	if(epublisher)
 	{
-		add_assoc_string(return_value, (char *) "cnx_ukey", epublisher->ukey, TRUE);
+		if(epublisher->connect())
+		{
+			epublisher->close();
+			add_assoc_string(return_value, (char *) "cnx_ukey", epublisher->ukey, TRUE);
+		}
+		else
+		{
+			add_assoc_bool(return_value, (char *) "cnx_ukey", FALSE);
+		}
 	}
 	else
 	{
@@ -314,9 +325,13 @@ PHP_FUNCTION(phrasea_conn)
 	if(zdbname_len > 1000)
 		zdbname[1000] = '\0';
 
+	if(PHRASEA2_G(epublisher))
+		delete(PHRASEA2_G(epublisher));
+
 	PHRASEA2_G(epublisher) = new SQLCONN(zhost, (int) zport, zuser, zpasswd, zdbname);
-	if(PHRASEA2_G(epublisher->isok()))
+	if(PHRASEA2_G(epublisher)->connect())
 	{
+		PHRASEA2_G(epublisher)->close();
 		RETURN_TRUE;
 	}
 	else
@@ -328,20 +343,4 @@ PHP_FUNCTION(phrasea_conn)
 }
 
 
-/*
- utility to log on file when zend_printf is not a solution
- */
-void ftrace(char *fmt, ...)
-{
-	return;
-	FILE * pFile;
-	if((pFile = fopen("/tmp/phrasea_extension.log", "a")))
-	{
-		va_list args;
-		va_start(args, fmt);
-		vfprintf(pFile, fmt, args);
-		va_end(args);
-		fclose(pFile);
-	}
-}
 

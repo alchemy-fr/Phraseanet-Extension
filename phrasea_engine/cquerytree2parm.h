@@ -15,12 +15,21 @@ class Cquerytree2Parm
 		char *sqltrec;
 		char **psortField;
 		int sortMethod;
-#if defined(PHP_WIN32) && 0
-		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn                  , zval *result, char *sqltrec, char **psortField, int sortMethod);
-#else
+		bool business;
 		CMutex *sqlmutex;
-		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod);
-#endif
+		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod, bool business);
+};
+
+struct Squerytree2Parm
+{
+		CNODE *n;
+		int depth;
+		SQLCONN *sqlconn;
+		zval *result;
+		char *sqltrec;
+		char **psortField;
+		int sortMethod;
+		CMutex *sqlmutex;
 };
 
 #endif

@@ -5,6 +5,8 @@
 #include "phrasea_clock_t.h"
 #include "sql.h"
 
+#include "ftrace.h"
+
 typedef struct hbal
 {
 	unsigned long offset;
@@ -13,8 +15,6 @@ typedef struct hbal
 HBAL;
 
 char THEX[] = "0123456789ABCDEF";
-
-void ftrace(char *fmt, ...);
 
 
 ZEND_FUNCTION(phrasea_fetch_results)
@@ -240,7 +240,6 @@ ZEND_FUNCTION(phrasea_fetch_results)
 									}
 									else
 									{
-ftrace("LINE %d ERR: %s\n", __LINE__, conn->error());
 									}
 //									conn->close();
 								}

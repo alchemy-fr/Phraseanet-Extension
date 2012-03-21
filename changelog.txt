@@ -1,5 +1,15 @@
-1.18.2.2
-fix err msg compiling phrasea2.cpp
+1.19.0.0
+"business fields"
+new parm to phrasea_query (last, after 'sortfield') : 
+    FALSE (default)= do NOT search on business fields
+    TRUE = ALLOW search on business fields
+
+1.18.3.1
+remove forgotten ftrace
+
+1.18.3.0
+restore win32 build
+multi-thread (// queries) is disabled
 
 1.18.2.1
 change creation on _tmpmask : key(coll_id) + type memory (thank's to enovance / skysql)

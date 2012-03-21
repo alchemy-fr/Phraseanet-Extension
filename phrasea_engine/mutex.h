@@ -11,16 +11,16 @@
 
 class CMutex
 {
-public:
-	CMutex();
-	~CMutex();
-	void lock();
-	void unlock();
-private:
+	public:
+		CMutex();
+		~CMutex();
+		void lock();
+		void unlock();
+	private:
 #ifdef PHP_WIN32
-	HANDLE sqlmutex;
+		HANDLE sqlmutex;
 #else
-	pthread_mutex_t sqlmutex;
+		pthread_mutex_t sqlmutex;
 #endif
 };
 #endif

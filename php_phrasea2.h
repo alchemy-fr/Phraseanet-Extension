@@ -41,6 +41,4 @@ extern zend_module_entry phrasea2_module_entry;
 // extern ZEND_DECLARE_MODULE_GLOBALS(phrasea2)
 ZEND_EXTERN_MODULE_GLOBALS(phrasea2)
 	
-void ftrace(char *fmt, ...);
-
 #endif	/* PHP_PHRASEA2_H */

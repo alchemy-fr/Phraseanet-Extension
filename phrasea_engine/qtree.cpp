@@ -525,11 +525,12 @@ void doOperatorEXCEPT(CNODE *n)
 
 THREAD_ENTRYPOINT querytree2(void *_qp)
 {
-	if(mysql_thread_safe())
-		mysql_thread_init();
+	TSRMLS_FETCH();
 
+//	if(MYSQL_THREAD_SAFE)
+//		mysql_thread_init();
 	
-	char sql[102400];
+	char sql[10240];
 	char *p;
 	int l;
 	KEYWORD *plk;
@@ -538,13 +539,15 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 	CHRONO chrono_all;
 
 #ifndef PHP_WIN32
-	pthread_attr_t thread_attr;
+//	pthread_attr_t thread_attr;
 #endif
+
+#ifdef WIN32
+#else
 	ATHREAD threadl, threadr;
+#endif
 	Cquerytree2Parm *qp = (Cquerytree2Parm *) _qp;
-
-	TSRMLS_FETCH();
-
+	// struct Squerytree2Parm *qp = (Squerytree2Parm *) _qp;
 	sql[0] = '\0';
 	startChrono(chrono_all);
 	if(qp->n)
@@ -557,6 +560,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 
 		switch(qp->n->type)
 		{
+
 			case PHRASEA_OP_NULL: // empty query
 				// qp->n->nbranswers = 0;
 				qp->n->nleaf = 0;
@@ -666,6 +670,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 				plk = qp->n->content.multileaf.firstkeyword;
 				if(plk && (p = kwclause(plk)))
 				{
+					const char *sql_business = qp->business ? "" : "AND !idx.business";
 					if(*(qp->psortField))
 					{
 						// ===== OK =====
@@ -676,9 +681,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									" FROM ((kword INNER JOIN idx USING(kword_id))"
 									" INNER JOIN %s USING(record_id))"
 									" INNER JOIN prop USING(record_id)"
-									" WHERE (%s) AND prop.name='%s'"
+									" WHERE (%s) %s AND prop.name='%s'"
 									, qp->sqltrec
 									, p
+									, sql_business
 									, *(qp->psortField)
 									);
 					}
@@ -691,9 +697,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									// ", NULL AS sha256"
 									" FROM (kword INNER JOIN idx USING(kword_id))"
 									" INNER JOIN %s USING(record_id)"
-									" WHERE (%s)"
+									" WHERE (%s) %s"
 									, qp->sqltrec
 									, p
+									, sql_business
 									);
 					}
 					EFREE(p);
@@ -716,7 +723,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 							add_assoc_string(qp->result, (char *) "keyword", plk->kword, TRUE);
 					}
 
-					qp->sqlconn->phrasea_query(sql, qp);
+//					qp->sqlconn->phrasea_query(sql, qp);
+					phrasea_query(sql, qp);
 				}
 				break;
 
@@ -727,6 +735,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					plk = qp->n->content.boperator.l->content.multileaf.firstkeyword;
 					if(plk && (p = kwclause(plk)))
 					{
+						const char *sql_business = qp->business ? "" : "AND !idx.business";
 						if(*(qp->psortField))
 						{
 							// ===== OK =====
@@ -738,9 +747,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 										" INNER JOIN %s USING(record_id))"
 										" INNER JOIN xpath USING(xpath_id))"
 										" INNER JOIN prop USING(record_id)"
-										" WHERE (%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]' AND prop.name='%s'"
+										" WHERE (%s) %s AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]' AND prop.name='%s'"
 										, qp->sqltrec
 										, p
+										, sql_business
 										, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
 										, *(qp->psortField)
 										);
@@ -755,9 +765,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 										" FROM ((kword INNER JOIN idx USING(kword_id))"
 										" INNER JOIN %s USING(record_id))"
 										" INNER JOIN xpath USING(xpath_id)"
-										" WHERE (%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
+										" WHERE (%s) %s AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
 										, qp->sqltrec
 										, p
+										, sql_business
 										, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
 										);
 						}
@@ -1058,6 +1069,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 
 							if(!sql[0]) // it was not a technical field = it was a field of the bas (structure)
 							{
+								const char *sql_business = qp->business ? "" : "AND !prop.business";
+
 								for(char *p = fname; *p; p++)
 								{
 									if(*p >= 'a' && *p <= 'z')
@@ -1067,16 +1080,17 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 								{
 									// ===== OK =====
 									sprintf(sql, "SELECT record.record_id, record.coll_id"
-											", prop.value AS skey"
+											", propsort.value AS skey"
 											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 											// ", NULL AS sha256"
-											" FROM (prop AS pp INNER JOIN %s USING(record_id))"
-											" INNER JOIN prop USING(record_id)"
-											" WHERE pp.name='%s' AND pp.value%s'%s' AND prop.name='%s'"
+											" FROM (prop INNER JOIN %s USING(record_id))"
+											" INNER JOIN prop AS propsort USING(record_id)"
+											" WHERE prop.name='%s' AND prop.value%s'%s' %s AND propsort.name='%s'"
 											, qp->sqltrec
 											, fname
 											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
 											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
+											, sql_business
 											, *(qp->psortField)
 											);
 								}
@@ -1088,11 +1102,12 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 											// ", NULL AS sha256"
 											" FROM prop INNER JOIN %s USING(record_id)"
-											" WHERE name='%s' AND value%s'%s'"
+											" WHERE name='%s' AND value%s'%s' %s"
 											, qp->sqltrec
 											, fname
 											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
 											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
+											, sql_business
 											);
 								}
 							}
@@ -1102,6 +1117,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					}
 				}
 				break;
+
 			case PHRASEA_OP_COLON:
 				if(qp->n->content.boperator.l && qp->n->content.boperator.r && qp->n->content.boperator.l->type == PHRASEA_KEYLIST && qp->n->content.boperator.r->type == PHRASEA_KEYLIST)
 				{
@@ -1135,6 +1151,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 							int l;
 							if(fvalue1)
 							{
+								const char *sql_business = qp->business ? "" : "AND !thit.business";
+
 								for(k = qp->n->content.boperator.r->content.multileaf.firstkeyword; k; k = k->nextkeyword)
 								{
 									l = strlen(k->kword);
@@ -1184,9 +1202,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												// ", NULL AS sha256"
 												" FROM (thit INNER JOIN %s USING(record_id))"
 												" INNER JOIN prop USING(record_id)"
-												" WHERE (%s) AND prop.name='%s'"
+												" WHERE (%s) %s AND prop.name='%s'"
 												, qp->sqltrec
 												, fvalue1
+												, sql_business
 												, *(qp->psortField)
 												);
 									}
@@ -1199,9 +1218,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM thit INNER JOIN %s USING(record_id)"
-												" WHERE (%s)"
+												" WHERE (%s) %s"
 												, qp->sqltrec
 												, fvalue1
+												, sql_business
 												);
 									}
 								}
@@ -1218,9 +1238,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												// ", NULL AS sha256"
 												" FROM (thit INNER JOIN %s USING(record_id))"
 												" INNER JOIN prop USING(record_id)"
-												" WHERE (%s) AND thit.name='%s' AND prop.name='%s'"
+												" WHERE (%s) %s AND thit.name='%s' AND prop.name='%s'"
 												, qp->sqltrec
 												, fvalue1
+												, sql_business
 												, fname
 												, *(qp->psortField)
 												);
@@ -1234,9 +1255,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM thit INNER JOIN %s USING(record_id)"
-												" WHERE (%s) AND thit.name='%s'"
+												" WHERE (%s) %s AND thit.name='%s'"
 												, qp->sqltrec
 												, fvalue1
+												, sql_business
 												, fname
 												);
 									}
@@ -1244,7 +1266,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 
 								EFREE(fvalue1);
 
-								qp->sqlconn->phrasea_query(sql, qp);
+//								qp->sqlconn->phrasea_query(sql, qp);
+								phrasea_query(sql, qp);
 							}
 							if(fvalue2)
 								EFREE(fvalue2);
@@ -1260,19 +1283,22 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod);
-					if(!mysql_thread_safe())
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					if(MYSQL_THREAD_SAFE)
 					{
-						querytree2((void *) &qpl);
-						querytree2((void *) &qpr);
-					}
-					else
-					{
+#ifdef WIN32
+#else
 						THREAD_START(threadl, querytree2, &qpl);
 						THREAD_START(threadr, querytree2, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
+#endif
+					}
+					else
+					{
+						querytree2((void *) &qpl);
+						querytree2((void *) &qpr);
 					}
 
 					if(qp->result)
@@ -1300,19 +1326,22 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod);
-					if(!mysql_thread_safe())
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					if(MYSQL_THREAD_SAFE)
 					{
-						querytree2((void *) &qpl);
-						querytree2((void *) &qpr);
-					}
-					else
-					{
+#ifdef WIN32
+#else
 						THREAD_START(threadl, querytree2, &qpl);
 						THREAD_START(threadr, querytree2, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
+#endif
+					}
+					else
+					{
+						querytree2((void *) &qpl);
+						querytree2((void *) &qpr);
 					}
 
 					if(qp->result)
@@ -1338,19 +1367,65 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod);
-					if(!mysql_thread_safe())
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					if(MYSQL_THREAD_SAFE)
 					{
-						querytree2((void *) &qpl);
-						querytree2((void *) &qpr);
-					}
-					else
-					{
+#ifdef WIN32
+/*
+						struct Squerytree2Parm sqpl =
+						{
+							qp->n->content.boperator.l,
+							qp->depth + 1,
+							qp->sqlconn,
+							objl,
+							qp->sqltrec,
+							qp->psortField,
+							qp->sortMethod,
+							qp->sqlmutex
+						};
+						struct Squerytree2Parm sqpr =
+						{
+							qp->n->content.boperator.r,
+							qp->depth + 1,
+							qp->sqlconn,
+							objr,
+							qp->sqltrec,
+							qp->psortField,
+							qp->sortMethod,
+							qp->sqlmutex
+						};
+*/
+						HANDLE  hThreadArray[2];
+						unsigned dwThreadIdArray[2];
+						hThreadArray[0] = (HANDLE)_beginthreadex( 
+							NULL,                   // default security attributes
+							0,                      // use default stack size  
+							querytree2,			    // thread function name
+							(void*)&qpl,             // argument to thread function 
+							0,                      // use default creation flags 
+							&dwThreadIdArray[0]);   // returns the thread identifier 
+						hThreadArray[1] = (HANDLE)_beginthreadex( 
+							NULL,                   // default security attributes
+							0,                      // use default stack size  
+							querytree2,			    // thread function name
+							(void*)&qpr,             // argument to thread function 
+							0,                      // use default creation flags 
+							&dwThreadIdArray[1]);   // returns the thread identifier 
+						WaitForMultipleObjects(2, hThreadArray, TRUE, INFINITE);
+						CloseHandle(hThreadArray[0]);
+						CloseHandle(hThreadArray[1]);
+#else
 						THREAD_START(threadl, querytree2, &qpl);
 						THREAD_START(threadr, querytree2, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
+#endif
+					}
+					else
+					{
+						querytree2((void *) &qpl);
+						querytree2((void *) &qpr);
 					}
 
 					if(qp->result)
@@ -1374,19 +1449,22 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod);
-					if(!mysql_thread_safe())
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					if(MYSQL_THREAD_SAFE)
 					{
-						querytree2((void *) &qpl);
-						querytree2((void *) &qpr);
-					}
-					else
-					{
+#ifdef WIN32
+#else
 						THREAD_START(threadl, querytree2, &qpl);
 						THREAD_START(threadr, querytree2, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
+#endif
+					}
+					else
+					{
+						querytree2((void *) &qpl);
+						querytree2((void *) &qpr);
 					}
 
 					if(qp->result)
@@ -1426,11 +1504,12 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 		// zend_printf("querytree : null node\n");
 	}
 
-	if(mysql_thread_safe())
+	if(MYSQL_THREAD_SAFE)
 	{
-		mysql_thread_end();
+//		mysql_thread_end();
 		THREAD_EXIT(0);
 	}
+	return 0;
 }
 
 void freetree(CNODE *n)

@@ -4,6 +4,9 @@
 #include "phrasea_types.h"	// define NODE
 #include "cquerytree2parm.h"
 
+void phrasea_query(char *sql, Cquerytree2Parm *qp);
+
+
 class SQLCONN
 {
 	public:
@@ -12,11 +15,11 @@ class SQLCONN
 		void close();
 		~SQLCONN();
 		char *ukey;
-		bool isok();
+//		bool isok();
 		bool query(char *sql, int len = -1);
 		const char *error();
 		int escape_string(char *str, int len = -1, char *outbuff = NULL);
-		void phrasea_query(char *sql, Cquerytree2Parm *qp, bool reverse=false);
+		void phrasea_query(char *sql, Cquerytree2Parm *qp);
 		my_ulonglong affected_rows();
 		// #WIN - _int64 affected_rows();
 		void *get_native_conn();
@@ -24,16 +27,17 @@ class SQLCONN
 		// class SQLRES *store_result();
 		friend class SQLRES;
 		friend class SQLROW;
-	private:
-		bool connok;
-		MYSQL mysql_conn;
-		int mysql_active_result_id;
 
 		char host[1024];
 		int port;
 		char user[1024];
 		char passwd[1024];
 		char dbname[1024];
+	private:
+		bool connok;
+		MYSQL mysql_connx;
+		int mysql_active_result_id;
+
 };
 
 class SQLROW
