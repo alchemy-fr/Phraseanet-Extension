@@ -1,8 +1,17 @@
+1.20.0.0
+"business fields"
+CHANGE last parm to phrasea_query : array of coll_id's allowed to search on business fields
+nb : to NOT search on business fields, pass an empty array().
+
 1.19.0.0
 "business fields"
 new parm to phrasea_query (last, after 'sortfield') : 
     FALSE (default)= do NOT search on business fields
     TRUE = ALLOW search on business fields
+works on :
+- fulltext ("word")
+- value-operators (field="a value")
+- thesaurus (*:"a term")
 
 1.18.3.1
 remove forgotten ftrace

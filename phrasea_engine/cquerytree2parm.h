@@ -15,9 +15,9 @@ class Cquerytree2Parm
 		char *sqltrec;
 		char **psortField;
 		int sortMethod;
-		bool business;
+		const char *business;
 		CMutex *sqlmutex;
-		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod, bool business);
+		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod, const char * business);
 };
 
 struct Squerytree2Parm

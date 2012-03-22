@@ -19,7 +19,7 @@
 //
 
 #ifndef PHDOTVERSION
-#define PHDOTVERSION 1.19.0.0
+#define PHDOTVERSION 1.20.0.0
 #endif
 //
 //=======================================================================
