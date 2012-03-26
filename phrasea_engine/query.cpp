@@ -170,9 +170,12 @@ ZEND_FUNCTION(phrasea_query2)
 						add_assoc_double(return_value, (char *) "time_connect", stopChrono(time_connect));
 
 						// build the sql that filter collections
+						CHRONO time_tmpmask;
+						startChrono(time_tmpmask);
+
 						std::stringstream sqlcoll;
 						sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` (KEY(coll_id)) TYPE MEMORY SELECT coll_id, mask_xor, mask_and FROM collusr WHERE site='"
-							<< zsite << "' AND usr_id=" << userid << " AND coll_id";
+								<< zsite << "' AND usr_id=" << userid << " AND coll_id";
 						if(t_collid.size() == 1)
 						{
 							sqlcoll << '=' << t_collid.begin()->first;
@@ -186,7 +189,8 @@ ZEND_FUNCTION(phrasea_query2)
 							sqlcoll << ')';
 						}
 						conn->query((char *) (sqlcoll.str().c_str())); // CREATE _tmpmask ...
-						// conn->query("CREATE INDEX coll_id ON _tmpmask(coll_id)");
+
+						add_assoc_double(return_value, (char *) "time_tmpmask", stopChrono(time_tmpmask));
 
 						// small sql that joins record and collusr
 						char *sqltrec = "(record)";
@@ -226,7 +230,7 @@ ZEND_FUNCTION(phrasea_query2)
 						std::stringstream sqlbusiness_strm;
 						sqlbusiness_strm << "OR FIND_IN_SET(record.coll_id, '";
 						bool first = true;
-						/* */
+
 						zval **tmp1;
 						int n = 0;
 						for(int i=0; TRUE; i++)
@@ -293,8 +297,8 @@ ZEND_FUNCTION(phrasea_query2)
 
 						if(sqlbusiness_c)
 							EFREE(sqlbusiness_c);
-						
-						conn->query("DROP TABLE _tmpmask");
+
+						conn->query("DROP TABLE _tmpmask");	// no need to drop temporary tables, but clean
 
 						if(!noCache)
 						{

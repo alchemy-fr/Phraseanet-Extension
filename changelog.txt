@@ -1,3 +1,6 @@
+1.20.0.1
+fix: bug on temporary table _tmpmask
+
 1.20.0.0
 "business fields"
 CHANGE last parm to phrasea_query : array of coll_id's allowed to search on business fields

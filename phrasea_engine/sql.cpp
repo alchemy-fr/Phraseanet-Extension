@@ -269,9 +269,12 @@ char *SQLROW::field(int n)
 
 void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp)
 {
+	qp->sqlconn->connect();
+	MYSQL *xconn = (MYSQL *)(qp->sqlconn->get_native_conn());
+/*	
 	SQLCONN xconn(this->host, this->port, this->user, this->passwd, this->dbname);
 	xconn.connect();
-
+*/
 	CHRONO chrono;
 	
 	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
@@ -284,7 +287,7 @@ void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp)
 
 	MYSQL_STMT *stmt;
 //	if((stmt = mysql_stmt_init(&(this->mysql_connx))))
-	if((stmt = mysql_stmt_init(&(xconn.mysql_connx))))
+	if((stmt = mysql_stmt_init(xconn)))
 	{
 //		qp->sqlmutex->lock();
 		if(mysql_stmt_prepare(stmt, sql, strlen(sql)) == 0)
@@ -359,7 +362,7 @@ void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp)
 						while(mysql_stmt_fetch(stmt) == 0)
 						{
 							rid = int_result[SQLFIELD_RID];
-/* */
+
 							CANSWER *answer;
 							if((answer = new CANSWER()))
 							{
@@ -425,73 +428,73 @@ void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp)
 									answer->lastspot = spot;
 								}
 							}
-/* */
 						}
 						qp->n->time_sqlFetch = stopChrono(chrono);
 					}
 					else // store error
 					{
-						zend_printf("ERR:%s<br/>\n", mysql_stmt_error(stmt));
+						zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 					}
 				}
 				else // bind error
 				{
-					zend_printf("ERR:%s<br/>\n", mysql_stmt_error(stmt));
+					zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 				}
 			}
 			else // execute error
 			{
-				zend_printf("ERR:%s<br/>\n", mysql_stmt_error(stmt));
+				zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 			}
 		}
 		else // prepare error
 		{
-			zend_printf("ERR:%s<br/>\n", mysql_stmt_error(stmt));
+			zend_printf("ERR: line %d : %s<br/>\n%s<br/>\n", __LINE__, mysql_stmt_error(stmt), sql);
 		}
 
-		mysql_stmt_close(stmt);
+//		mysql_stmt_close(stmt);
 //		qp->sqlmutex->unlock();
 	}
 //	mysql_thread_end();
 }
 
+/* ==================================================================
+
 void phrasea_query(char *sql, Cquerytree2Parm *qp)
 {
-		MYSQL connx;
-		bool connok = false;
+	MYSQL connx;
+	bool connok = false;
 
-		mysql_init(&connx);
+	mysql_init(&connx);
 #ifdef MYSQL_OPT_RECONNECT
-		my_bool reconnect = 1;
-		mysql_options(&connx), MYSQL_OPT_RECONNECT, &reconnect);
+	my_bool reconnect = 1;
+	mysql_options(&connx), MYSQL_OPT_RECONNECT, &reconnect);
 #endif
-		my_bool compress = 1;
-		mysql_options(&connx, MYSQL_OPT_COMPRESS, &compress);
+	my_bool compress = 1;
+	mysql_options(&connx, MYSQL_OPT_COMPRESS, &compress);
 
-		if(mysql_real_connect(&connx, qp->sqlconn->host, qp->sqlconn->user, qp->sqlconn->passwd, qp->sqlconn->dbname, qp->sqlconn->port, NULL, CLIENT_COMPRESS) != NULL)
-		{
+	if(mysql_real_connect(&connx, qp->sqlconn->host, qp->sqlconn->user, qp->sqlconn->passwd, qp->sqlconn->dbname, qp->sqlconn->port, NULL, CLIENT_COMPRESS) != NULL)
+	{
 #ifdef MYSQLENCODE
-			if(mysql_set_character_set(&connx, QUOTE(MYSQLENCODE)) == 0)
+		if(mysql_set_character_set(&connx, QUOTE(MYSQLENCODE)) == 0)
 #endif
-			{
-				connok = true;
-			}
-			else
-			{
-				// mysql_set_character_set failed
-				mysql_close(&connx);
-			}
+		{
+			connok = true;
 		}
 		else
 		{
-			// connect failed
+			// mysql_set_character_set failed
 			mysql_close(&connx);
 		}
+	}
+	else
+	{
+		// connect failed
+		mysql_close(&connx);
+	}
 
-		
 	if(!connok)
 		return;
-		
+
 	CHRONO chrono;
 	
 	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
@@ -579,7 +582,7 @@ void phrasea_query(char *sql, Cquerytree2Parm *qp)
 						while(mysql_stmt_fetch(stmt) == 0)
 						{
 							rid = int_result[SQLFIELD_RID];
-/* */
+
 							CANSWER *answer;
 							if((answer = new CANSWER()))
 							{
@@ -645,28 +648,27 @@ void phrasea_query(char *sql, Cquerytree2Parm *qp)
 									answer->lastspot = spot;
 								}
 							}
-/* */
 						}
 						qp->n->time_sqlFetch = stopChrono(chrono);
 					}
 					else // store error
 					{
-						zend_printf("ERR:%s<br/>\n", mysql_stmt_error(stmt));
+						zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 					}
 				}
 				else // bind error
 				{
-					zend_printf("ERR:%s<br/>\n", mysql_stmt_error(stmt));
+					zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 				}
 			}
 			else // execute error
 			{
-				zend_printf("ERR:%s<br/>\n", mysql_stmt_error(stmt));
+				zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 			}
 		}
 		else // prepare error
 		{
-			zend_printf("ERR:%s<br/>\n", mysql_stmt_error(stmt));
+			zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 		}
 
 		mysql_stmt_close(stmt);
@@ -676,3 +678,4 @@ void phrasea_query(char *sql, Cquerytree2Parm *qp)
 //	mysql_thread_end();
 }
 
+========================================== */

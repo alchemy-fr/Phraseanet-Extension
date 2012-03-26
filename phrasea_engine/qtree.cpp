@@ -729,8 +729,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 							add_assoc_string(qp->result, (char *) "keyword", plk->kword, TRUE);
 					}
 
-//					qp->sqlconn->phrasea_query(sql, qp);
-					phrasea_query(sql, qp);
+					qp->sqlconn->phrasea_query(sql, qp);
+//					phrasea_query(sql, qp);
 				}
 				break;
 
@@ -1280,8 +1280,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 
 								EFREE(fvalue1);
 
-//								qp->sqlconn->phrasea_query(sql, qp);
-								phrasea_query(sql, qp);
+								qp->sqlconn->phrasea_query(sql, qp);
+//								phrasea_query(sql, qp);
 							}
 							if(fvalue2)
 								EFREE(fvalue2);
