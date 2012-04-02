@@ -1,3 +1,7 @@
+1.20.1.0
+now backward compatible with old site without business fields (<3.6) :
+calling phrasea_query(...) WITHOUT "non_business_colls array" as last parm remove all references to business fields.
+
 1.20.0.1
 fix: bug on temporary table _tmpmask
 

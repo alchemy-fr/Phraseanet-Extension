@@ -685,11 +685,11 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									" FROM ((kword INNER JOIN idx USING(kword_id))"
 									" INNER JOIN %s USING(record_id))"
 									" INNER JOIN prop USING(record_id)"
-									" WHERE (%s) AND (!idx.business %s) AND prop.name='%s'"
-//									" WHERE (%s) %s AND prop.name='%s'"
+									" WHERE (%s) AND (%s%s) AND prop.name='%s'"
 									, qp->sqltrec
 									, p
-									, qp->business
+									, qp->business ? "!idx.business " : "1"
+									, qp->business ? qp->business : ""
 									, *(qp->psortField)
 									);
 					}
@@ -702,11 +702,11 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									// ", NULL AS sha256"
 									" FROM (kword INNER JOIN idx USING(kword_id))"
 									" INNER JOIN %s USING(record_id)"
-									" WHERE (%s) AND (!idx.business %s)"
-//									" WHERE (%s) %s"
+									" WHERE (%s) AND (%s%s)"
 									, qp->sqltrec
 									, p
-									, qp->business
+									, qp->business ? "!idx.business " : "1"
+									, qp->business ? qp->business : ""
 									);
 					}
 					EFREE(p);
@@ -753,11 +753,11 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 										" INNER JOIN %s USING(record_id))"
 										" INNER JOIN xpath USING(xpath_id))"
 										" INNER JOIN prop USING(record_id)"
-										" WHERE (%s) AND (!idx.business %s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]' AND prop.name='%s'"
-//										" WHERE (%s) %s AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]' AND prop.name='%s'"
+										" WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]' AND prop.name='%s'"
 										, qp->sqltrec
 										, p
-										, qp->business
+										, qp->business ? "!idx.business " : "1"
+										, qp->business ? qp->business : ""
 										, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
 										, *(qp->psortField)
 										);
@@ -772,11 +772,11 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 										" FROM ((kword INNER JOIN idx USING(kword_id))"
 										" INNER JOIN %s USING(record_id))"
 										" INNER JOIN xpath USING(xpath_id)"
-										" WHERE (%s) AND (!idx.business %s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
-//										" WHERE (%s) %s AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
+										" WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
 										, qp->sqltrec
 										, p
-										, qp->business
+										, qp->business ? "!idx.business " : "1"
+										, qp->business ? qp->business : ""
 										, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
 										);
 						}
@@ -1093,13 +1093,13 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 											// ", NULL AS sha256"
 											" FROM (prop INNER JOIN %s USING(record_id))"
 											" INNER JOIN prop AS propsort USING(record_id)"
-											" WHERE prop.name='%s' AND prop.value%s'%s' AND (!prop.business %s) AND propsort.name='%s'"
-//											" WHERE prop.name='%s' AND prop.value%s'%s' %s AND propsort.name='%s'"
+											" WHERE prop.name='%s' AND prop.value%s'%s' AND (%s%s) AND propsort.name='%s'"
 											, qp->sqltrec
 											, fname
 											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
 											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-											, qp->business
+											, qp->business ? "!prop.business " : "1"
+											, qp->business ? qp->business : ""
 											, *(qp->psortField)
 											);
 								}
@@ -1111,13 +1111,13 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 											// ", NULL AS sha256"
 											" FROM prop INNER JOIN %s USING(record_id)"
-											" WHERE name='%s' AND value%s'%s' AND (!prop.business %s)"
-//											" WHERE name='%s' AND value%s'%s' %s"
+											" WHERE name='%s' AND value%s'%s' AND (%s%s)"
 											, qp->sqltrec
 											, fname
 											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
 											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-											, qp->business
+											, qp->business ? "!prop.business " : "1"
+											, qp->business ? qp->business : ""
 											);
 								}
 							}
@@ -1212,11 +1212,11 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												// ", NULL AS sha256"
 												" FROM (thit INNER JOIN %s USING(record_id))"
 												" INNER JOIN prop USING(record_id)"
-												" WHERE (%s) AND (!thit.business %s) AND prop.name='%s'"
-//												" WHERE (%s) %s AND prop.name='%s'"
+												" WHERE (%s) AND (%s%s) AND prop.name='%s'"
 												, qp->sqltrec
 												, fvalue1
-												, qp->business
+												, qp->business ? "!thit.business " : "1"
+												, qp->business ? qp->business : ""
 												, *(qp->psortField)
 												);
 									}
@@ -1229,11 +1229,11 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM thit INNER JOIN %s USING(record_id)"
-												" WHERE (%s) AND (!thit.business %s)"
-//												" WHERE (%s) %s"
+												" WHERE (%s) AND (%s%s)"
 												, qp->sqltrec
 												, fvalue1
-												, qp->business
+												, qp->business ? "!thit.business " : "1"
+												, qp->business ? qp->business : ""
 												);
 									}
 								}
@@ -1250,11 +1250,11 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												// ", NULL AS sha256"
 												" FROM (thit INNER JOIN %s USING(record_id))"
 												" INNER JOIN prop USING(record_id)"
-												" WHERE (%s) AND (!thit.business %s) AND thit.name='%s' AND prop.name='%s'"
-//												" WHERE (%s) %s AND thit.name='%s' AND prop.name='%s'"
+												" WHERE (%s) AND (%s%s) AND thit.name='%s' AND prop.name='%s'"
 												, qp->sqltrec
 												, fvalue1
-												, qp->business
+												, qp->business ? "!thit.business " : "1"
+												, qp->business ? qp->business : ""
 												, fname
 												, *(qp->psortField)
 												);
@@ -1268,11 +1268,11 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM thit INNER JOIN %s USING(record_id)"
-												" WHERE (%s) AND (!thit.business %s) AND thit.name='%s'"
-//												" WHERE (%s) %s AND thit.name='%s'"
+												" WHERE (%s) AND (%s%s) AND thit.name='%s'"
 												, qp->sqltrec
 												, fvalue1
-												, qp->business
+												, qp->business ? "!thit.business " : "1"
+												, qp->business ? qp->business : ""
 												, fname
 												);
 									}

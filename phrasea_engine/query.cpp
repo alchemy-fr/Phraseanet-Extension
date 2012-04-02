@@ -62,6 +62,8 @@ ZEND_FUNCTION(phrasea_query2)
 	int sortorder = 0; // no sort
 	int sortmethod = SORTMETHOD_STR;
 
+	char *sqlbusiness_c = NULL;
+
 
 	std::map<long, long> t_collid; // key : distant_coll_id (dbox side) ==> value : local_base_id (appbox side)
 
@@ -76,12 +78,10 @@ ZEND_FUNCTION(phrasea_query2)
 				zsite[32] = '\0';
 			break;
 		case 9:  // session, baseid, collist, quarray, site, userid, noCache, multidocMode, sortfield
-		case 10: // session, baseid, collist, quarray, site, userid, noCache, multidocMode, sortfield, search_business
-			if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, (char *) "llaaslbls|a", &session, &sbasid, &zcolllist, &zqarray, &zsite, &zsitelen, &userid, &noCache, &multidocMode, &zsortfield, &zsortfieldlen, &zbusiness) == FAILURE)
+			if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, (char *) "llaaslbls", &session, &sbasid, &zcolllist, &zqarray, &zsite, &zsitelen, &userid, &noCache, &multidocMode, &zsortfield, &zsortfieldlen) == FAILURE)
 			{
 				RETURN_FALSE;
 			}
-			if(Z_TYPE_P(zbusiness) != IS_ARRAY)
 
 			if(zsitelen > 32)
 				zsite[32] = '\0';
@@ -113,6 +113,82 @@ ZEND_FUNCTION(phrasea_query2)
 			}
 			if(zsortfieldlen == 0)
 				zsortfield = NULL;
+			break;
+		case 10: // session, baseid, collist, quarray, site, userid, noCache, multidocMode, sortfield, search_business
+			if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, (char *) "llaaslblsa", &session, &sbasid, &zcolllist, &zqarray, &zsite, &zsitelen, &userid, &noCache, &multidocMode, &zsortfield, &zsortfieldlen, &zbusiness) == FAILURE)
+			{
+				RETURN_FALSE;
+			}
+
+			if(zsitelen > 32)
+				zsite[32] = '\0';
+
+			if(zsortfieldlen > 0)
+			{
+				sortorder = 1; // default : desc
+				if(zsortfield[0] == '+')
+				{
+					zsortfield++;
+					zsortfieldlen--;
+					sortorder = -1;
+				}
+				else if(zsortfield[0] == '-')
+				{
+					zsortfield++;
+					zsortfieldlen--;
+				}
+			}
+			if(zsortfieldlen > 0)
+			{
+				sortmethod = SORTMETHOD_STR; // default : desc
+				if(zsortfield[0] == '0')
+				{
+					zsortfield++;
+					zsortfieldlen--;
+					sortmethod = SORTMETHOD_INT;
+				}
+			}
+			if(zsortfieldlen == 0)
+				zsortfield = NULL;
+			
+			// prepare a sql to filter business fields
+			std::stringstream sqlbusiness_strm;
+			sqlbusiness_strm << "OR FIND_IN_SET(record.coll_id, '";
+			bool first = true;
+
+			zval **tmp1;
+			int n = 0;
+			for(int i=0; TRUE; i++)
+			{
+				if(zend_hash_index_find(HASH_OF(zbusiness), i, (void **) &tmp1) == SUCCESS)
+				{
+
+					if(Z_TYPE_PP(tmp1) == IS_LONG)
+					{
+						if(!first)
+							sqlbusiness_strm << ",";
+						sqlbusiness_strm << Z_LVAL_P(*tmp1);
+						first = false;
+						n++;
+					}
+
+				}
+				else
+					break;
+			}
+			if(n > 0)
+			{
+				sqlbusiness_strm << "')";
+				std::string sqlbusiness_str = sqlbusiness_strm.str();
+				if(sqlbusiness_c = (char *)EMALLOC(sqlbusiness_str.length()+1))
+					memcpy(sqlbusiness_c, sqlbusiness_str.c_str(), sqlbusiness_str.length()+1);
+			}
+			else
+			{
+				if(sqlbusiness_c = (char *)EMALLOC(1))
+					sqlbusiness_c[0] = '\0';
+			}
+			
 			break;
 	}
 
@@ -226,44 +302,6 @@ ZEND_FUNCTION(phrasea_query2)
 
 						char **pzsortfield = &zsortfield; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
 
-						// prepare a sql to filter business fields
-						std::stringstream sqlbusiness_strm;
-						sqlbusiness_strm << "OR FIND_IN_SET(record.coll_id, '";
-						bool first = true;
-
-						zval **tmp1;
-						int n = 0;
-						for(int i=0; TRUE; i++)
-						{
-							if(zend_hash_index_find(HASH_OF(zbusiness), i, (void **) &tmp1) == SUCCESS)
-							{
-
-								if(Z_TYPE_PP(tmp1) == IS_LONG)
-								{
-									if(!first)
-										sqlbusiness_strm << ",";
-									sqlbusiness_strm << Z_LVAL_P(*tmp1);
-									first = false;
-									n++;
-								}
-
-							}
-							else
-								break;
-						}
-						char *sqlbusiness_c;
-						if(n > 0)
-						{
-							sqlbusiness_strm << "')";
-							std::string sqlbusiness_str = sqlbusiness_strm.str();
-							if(sqlbusiness_c = (char *)EMALLOC(sqlbusiness_str.length()+1))
-								memcpy(sqlbusiness_c, sqlbusiness_str.c_str(), sqlbusiness_str.length()+1);
-						}
-						else
-						{
-							if(sqlbusiness_c = (char *)EMALLOC(1))
-								sqlbusiness_c[0] = '\0';
-						}
 
 						// here we query phrasea !
 // pthread_mutex_t sqlmutex;
@@ -294,9 +332,6 @@ ZEND_FUNCTION(phrasea_query2)
 						{
 							querytree2((void *) &qp);
 						}
-
-						if(sqlbusiness_c)
-							EFREE(sqlbusiness_c);
 
 						conn->query("DROP TABLE _tmpmask");	// no need to drop temporary tables, but clean
 
@@ -501,5 +536,9 @@ ZEND_FUNCTION(phrasea_query2)
 			}
 		}
 	}
+	
+	if(sqlbusiness_c)
+		EFREE(sqlbusiness_c);
+
 	add_assoc_double(return_value, (char *) "time_phpfct", stopChrono(time_phpfct));
 }
