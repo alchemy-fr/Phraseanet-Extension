@@ -234,6 +234,7 @@ ZEND_FUNCTION(phrasea_query2)
 			// get the adresse of the distant database
 			std::stringstream sql;
 			sql << "SELECT sbas_id, host, port, sqlengine, dbname, user, pwd FROM sbas WHERE sbas_id=" << sbasid;
+add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str())), TRUE);
 			if(res.query((char *) (sql.str().c_str())))
 			{
 				SQLROW *row = res.fetch_row();
@@ -265,6 +266,7 @@ ZEND_FUNCTION(phrasea_query2)
 							sqlcoll << ')';
 						}
 						conn->query((char *) (sqlcoll.str().c_str())); // CREATE _tmpmask ...
+add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c_str()), TRUE);
 
 						add_assoc_double(return_value, (char *) "time_tmpmask", stopChrono(time_tmpmask));
 
