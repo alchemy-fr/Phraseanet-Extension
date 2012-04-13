@@ -251,7 +251,7 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
 						startChrono(time_tmpmask);
 
 						std::stringstream sqlcoll;
-						sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` (KEY(coll_id)) TYPE MEMORY SELECT coll_id, mask_xor, mask_and FROM collusr WHERE site='"
+						sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` (KEY(coll_id)) ENGINE=MEMORY SELECT coll_id, mask_xor, mask_and FROM collusr WHERE site='"
 								<< zsite << "' AND usr_id=" << userid << " AND coll_id";
 						if(t_collid.size() == 1)
 						{

@@ -1,3 +1,6 @@
+1.20.1.2
+fix : with mysql 5.5, "TYPE MEMORY" does not work, changed to "ENGINE=MEMORY"
+
 1.20.1.1
 add some sql strings to result of "phrasea_query(...)" (for debug)
 
