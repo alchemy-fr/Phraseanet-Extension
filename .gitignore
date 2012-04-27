@@ -35,3 +35,7 @@ BuildLog.htm
 /rmake.txt
 /run-tests.php
 /libtool
+*.lo
+modules
+phrasea2.so
+phrasea2.la
