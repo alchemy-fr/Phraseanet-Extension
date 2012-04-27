@@ -98,7 +98,6 @@ static void php_phrasea2_init_globals(zend_phrasea2_globals *phrasea2_globals)
 {
 	phrasea2_globals->epublisher = NULL;
 	phrasea2_globals->global_session = NULL;
-	phrasea2_globals->tempPath[0] = '\0';
 }
 // -----------------------------------------------------------------------------
 // option -Wno-write-strings to gcc prevents warnings on this section
