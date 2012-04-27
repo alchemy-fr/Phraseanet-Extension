@@ -1,7 +1,15 @@
 *.svn*
 .project
 .cproject
+config.log
+config.nice
+config.status
+config.h
 autom4te.cache
 /nbproject/*
 /phrasea_engine/.libs/
 /.libs/
+*.lo
+modules
+phrasea2.so
+phrasea2.la
