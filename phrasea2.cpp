@@ -50,7 +50,7 @@ ZEND_DECLARE_MODULE_GLOBALS(phrasea2)
 
 // -----------------------------------------------------------------------------
 // option -Wno-write-strings to gcc prevents warnings on this section
-static function_entry phrasea2_functions[] = {
+static zend_function_entry phrasea2_functions[] = {
 	PHP_FE(phrasea_info, NULL)
 	PHP_FE(phrasea_conn, NULL)
 	PHP_FE(phrasea_create_session, NULL)

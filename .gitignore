@@ -2,6 +2,10 @@
 .deps
 .project
 .cproject
+config.log
+config.nice
+config.status
+config.h
 autom4te.cache
 /nbproject/*
 /phrasea_engine/.libs/
@@ -31,3 +35,7 @@ BuildLog.htm
 /rmake.txt
 /run-tests.php
 /libtool
+*.lo
+modules
+phrasea2.so
+phrasea2.la
