@@ -1,3 +1,38 @@
+1.20.1.2
+fix : with mysql 5.5, "TYPE MEMORY" does not work, changed to "ENGINE=MEMORY"
+
+1.20.1.1
+add some sql strings to result of "phrasea_query(...)" (for debug)
+
+1.20.1.0
+now backward compatible with old site without business fields (<3.6) :
+calling phrasea_query(...) WITHOUT "non_business_colls array" as last parm remove all references to business fields.
+
+1.20.0.1
+fix: bug on temporary table _tmpmask
+
+1.20.0.0
+"business fields"
+CHANGE last parm to phrasea_query : array of coll_id's allowed to search on business fields
+nb : to NOT search on business fields, pass an empty array().
+
+1.19.0.0
+"business fields"
+new parm to phrasea_query (last, after 'sortfield') : 
+    FALSE (default)= do NOT search on business fields
+    TRUE = ALLOW search on business fields
+works on :
+- fulltext ("word")
+- value-operators (field="a value")
+- thesaurus (*:"a term")
+
+1.18.3.1
+remove forgotten ftrace
+
+1.18.3.0
+restore win32 build
+multi-thread (// queries) is disabled
+
 1.18.2.1
 change creation on _tmpmask : key(coll_id) + type memory (thank's to enovance / skysql)
 

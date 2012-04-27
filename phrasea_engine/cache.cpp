@@ -11,8 +11,6 @@
 #define PAD sizeof(char *)
 #define LSTRPAD(l) (((l)+PAD) & ~(PAD-1))
 
-void ftrace(char *fmt, ...);
-
 
 CACHE_COLL::CACHE_COLL(long coll_id, long base_id, char *name, char *prefs) //, bool registered)
 {

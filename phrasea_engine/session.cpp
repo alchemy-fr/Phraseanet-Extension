@@ -127,7 +127,7 @@ ZEND_FUNCTION(phrasea_create_session)
 							delete conn;
 
 						conn = new SQLCONN(row->field(1), atoi(row->field(2)), row->field(4), row->field(5), row->field(3));
-						if(conn && conn->isok())
+						if(conn && conn->connect())
 						{
 							SQLRES res2(conn);
 							if(res2.query((char *) "SELECT value AS struct FROM pref WHERE prop='structure' LIMIT 1;"))
@@ -151,7 +151,7 @@ ZEND_FUNCTION(phrasea_create_session)
 					}
 
 					// here for every base / collections
-					if(conn && conn->isok())
+					if(conn && conn->connect())
 					{
 						SQLRES res(conn);
 						long collid = atol(row->field(6));
@@ -160,7 +160,7 @@ ZEND_FUNCTION(phrasea_create_session)
 						{
 							SQLROW *row = res.fetch_row();
 
-							if(cache_base)
+							if(row && cache_base)
 							{
 								// cache_base->addcoll(collid, basid, row->field(0), (char *) (row->field(1) ? row->field(1) : ""), false);
 								cache_base->addcoll(collid, basid, row->field(0), (char *) (row->field(1) ? row->field(1) : "")); // , true);

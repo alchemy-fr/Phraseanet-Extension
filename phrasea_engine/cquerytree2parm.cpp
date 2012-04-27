@@ -5,22 +5,16 @@
 #include "mutex.h"
 #include "cquerytree2parm.h"
 
-#if defined(PHP_WIN32) && 0
-Cquerytree2Parm::Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn,                   zval *result, char *sqltrec, char **psortField, int sortMethod)
-#else
-Cquerytree2Parm::Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod)
-#endif
+Cquerytree2Parm::Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod, const char *business)
 {
 	this->n = n;
 	this->depth = depth;
 	this->sqlconn = sqlconn;
-#if defined(PHP_WIN32) && 0
-#else
 	this->sqlmutex = sqlmutex;
-#endif
 	this->result = result;
 	this->sqltrec = sqltrec;
 	this->psortField = psortField;
 	this->sortMethod = sortMethod;
+	this->business = business;
 }
 

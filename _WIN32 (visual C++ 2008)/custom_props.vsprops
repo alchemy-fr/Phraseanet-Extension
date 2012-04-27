@@ -6,12 +6,12 @@
 	>
 	<UserMacro
 		Name="PHVERSION"
-		Value="&quot;1,16,5,4&quot;"
+		Value="&quot;1,18,2,0&quot;"
 		PerformEnvironmentSet="true"
 	/>
 	<UserMacro
 		Name="PHDOTVERSION"
-		Value="&quot;1.16.5.4&quot;"
+		Value="&quot;1.18.2.0&quot;"
 		PerformEnvironmentSet="true"
 	/>
 </VisualStudioPropertySheet>
