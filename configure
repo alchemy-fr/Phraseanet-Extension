@@ -4156,7 +4156,7 @@ $as_echo "$PHRASEAVERSION" >&6; }
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking MySQL includes dir" >&5
 $as_echo_n "checking MySQL includes dir... " >&6; }
-  for i in $PHP_PHRASEA2 /usr/local /usr; do
+  for i in $PHP_PHRASEA2 /usr/local /usr /opt/local; do
     if test -r $i/include/mysql/mysql.h; then
       MYSQL_DIR=$i
       MYSQL_INC_DIR=$i/include/mysql
@@ -4165,10 +4165,15 @@ $as_echo_n "checking MySQL includes dir... " >&6; }
       MYSQL_DIR=$i
       MYSQL_INC_DIR=$i/include
       break
+#Add MacPort Compatibility
+   elif test -r $i/include/mysql5/mysql/mysql.h; then
+	  MYSQL_DIR=$i
+      MYSQL_INC_DIR=$i/include/mysql5/mysql
+      break
     fi
   done
   if test -z "$MYSQL_DIR"; then
-    as_fn_error $? "Cannot find MySQL header files under $PHP_PHRASEA2." "$LINENO" 5
+    as_fn_error $? "Cannot find MySQL header files under $MYSQL_DIR." "$LINENO" 5
   else
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $MYSQL_INC_DIR" >&5
 $as_echo "$MYSQL_INC_DIR" >&6; }
@@ -4222,7 +4227,7 @@ $as_echo_n "checking MySQL library... " >&6; }
     PHP_LIBDIR=lib
   fi
 
-  for i in $PHP_LIBDIR $PHP_LIBDIR/mysql; do
+  for i in $PHP_LIBDIR $PHP_LIBDIR/mysql $PHP_LIBDIR/mysql5/mysql; do
 
   str="$MYSQL_DIR/$i/lib$MYSQL_LIBNAME.*"
   for j in `echo $str`; do
