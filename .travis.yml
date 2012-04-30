@@ -1,0 +1,4 @@
+script:
+	- ./script/ci/configure
+	- ./script/ci/make
+	- sudo ./script/ci/make install
