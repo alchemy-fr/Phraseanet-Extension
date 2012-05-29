@@ -1,8 +1,7 @@
-1.20.1.4
-fix : Add macport compatibility
-
 1.20.1.3
-fix : replace function_entry by zend_function_entry for PHP 5.4 compatibility
+fix link under ubuntu "precise" : mysql headers/libs now found using "mysql_config" (change in config.m4)
+fix some warning (cast from string to char *)
+removed some g++ debug options
 
 1.20.1.2
 fix : with mysql 5.5, "TYPE MEMORY" does not work, changed to "ENGINE=MEMORY"
@@ -24,7 +23,7 @@ nb : to NOT search on business fields, pass an empty array().
 
 1.19.0.0
 "business fields"
-new parm to phrasea_query (last, after 'sortfield') : 
+new parm to phrasea_query (last, after 'sortfield') :
     FALSE (default)= do NOT search on business fields
     TRUE = ALLOW search on business fields
 works on :
@@ -79,7 +78,7 @@ Removed functions :
 - phrasea_setstatus
 - phrasea_register_base
 - phrasea_subdefs
-- phrasea_status 
+- phrasea_status
 - phrasea_xmlcaption
 - phrasea_setxmlcaption
 - phrasea_isgrp
@@ -111,10 +110,10 @@ nb : "LAST 100" returns the LAST 100 records added (using record_id), then sorte
 nb : searching for duplicates ("sha256=sha256") disables sort
 
 
-multi-thread model (experimental) : 
+multi-thread model (experimental) :
 add option "--enable-maintainer-zts" to ./configure (shows a warning but still ok ?)
 
- 
+
 !! COMPILING FOR WIN32 IS TEMPORALY DISABLED !!
 
 todo ?
@@ -154,11 +153,11 @@ Changement pour les reportages : reportage <=> (parent_record_id == 1)
 Correction bug compilation sous OSX
 
 1.16.5.5
-Suppression de l'auto_increment dans les sessions 
+Suppression de l'auto_increment dans les sessions
 
 
 1.16.5.4
-Improvement : uuid functions 
+Improvement : uuid functions
 
 1.16.5.3
 fix : crash on win32/multibases
@@ -195,13 +194,13 @@ restore compile under windows
 1.16.2.1
 fixed : queries (thumbnail=0, preview=1 etc...) were broken
 
-	
+
 1.16.2.0
 added 'recordtype' pseudo-field (matched against the record.type field)
 
 
 1.16.1.0
-standard build process under linux (ubuntu ok): 
+standard build process under linux (ubuntu ok):
 ./configure ; make ; make test ; make install
 beware : relocation of files
 BEWARE !!! :
@@ -213,17 +212,17 @@ TODO :
  FROM HERE, WIN32 & OSX build is (temporaly) disabled
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-	
+
 1.16.0.1
 multi-sites ok (cache filenames have host+port+dbname from l'appbox, + session_id)
-TODO : 
+TODO :
 	how to change the cache dir (/tmp is hardcoded)
 
 
 1.16.0.0
 writing cache in /tmp (not in sql anymore)
 adding chronos
-BEWARE : 
+BEWARE :
 	changing return of phrasea_fetch_results(...) :
 		before : array of results
 		now    : assoc array, results in $ret['results']
@@ -252,7 +251,7 @@ changing structure of table pref (dbbox)
 
 1.14.12.2
 correcting bug "canary mismatch"
-enhancement of the UBUNTU compile script : 
+enhancement of the UBUNTU compile script :
 	removing "warning: deprecated conversion from string constant to 'char*'" (gcc option -Wno-write-strings)
 
 

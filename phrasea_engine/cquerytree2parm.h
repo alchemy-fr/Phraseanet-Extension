@@ -12,12 +12,12 @@ class Cquerytree2Parm
 		int depth;
 		SQLCONN *sqlconn;
 		zval *result;
-		char *sqltrec;
+		const char *sqltrec;
 		char **psortField;
 		int sortMethod;
 		const char *business;
 		CMutex *sqlmutex;
-		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod, const char * business);
+		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, const char *sqltrec, char **psortField, int sortMethod, const char * business);
 };
 
 struct Squerytree2Parm

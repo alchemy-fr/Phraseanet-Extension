@@ -54,7 +54,7 @@ ZEND_FUNCTION(phrasea_query2)
 
 	char *zsortfield = NULL;
 	int zsortfieldlen;
-	
+
 //	zend_bool zbusiness = false;
 	zval *zbusiness;
 //	array_init(zbusiness);
@@ -150,7 +150,7 @@ ZEND_FUNCTION(phrasea_query2)
 			}
 			if(zsortfieldlen == 0)
 				zsortfield = NULL;
-			
+
 			// prepare a sql to filter business fields
 			std::stringstream sqlbusiness_strm;
 			sqlbusiness_strm << "OR FIND_IN_SET(record.coll_id, '";
@@ -188,7 +188,7 @@ ZEND_FUNCTION(phrasea_query2)
 				if(sqlbusiness_c = (char *)EMALLOC(1))
 					sqlbusiness_c[0] = '\0';
 			}
-			
+
 			break;
 	}
 
@@ -271,7 +271,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 						add_assoc_double(return_value, (char *) "time_tmpmask", stopChrono(time_tmpmask));
 
 						// small sql that joins record and collusr
-						char *sqltrec = "(record)";
+						const char *sqltrec = "(record)";
 
 						// let's check if we need to include mask in our queries (if every mask on every coll is '0', we dont need)
 						SQLRES restmp(conn);
@@ -315,13 +315,13 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 #ifdef WIN32
 						HANDLE  hThread;
 						unsigned dwThreadId;
-						hThread = (HANDLE)_beginthreadex( 
+						hThread = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
-							0,                      // use default stack size  
+							0,                      // use default stack size
 							querytree2,			    // thread function name
-							(void*)&qp,             // argument to thread function 
-							0,                      // use default creation flags 
-							&dwThreadId);   // returns the thread identifier 
+							(void*)&qp,             // argument to thread function
+							0,                      // use default creation flags
+							&dwThreadId);   // returns the thread identifier
 						WaitForSingleObject(hThread, INFINITE);
 						CloseHandle(hThread);
 #else
@@ -538,7 +538,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 			}
 		}
 	}
-	
+
 	if(sqlbusiness_c)
 		EFREE(sqlbusiness_c);
 

@@ -7,7 +7,7 @@
 // before compiling the project
 //
 #define QUOTE(x) _QUOTE(x)
-#define _QUOTE(a) #a 
+#define _QUOTE(a) #a
 //
 //=======================================================================
 
@@ -19,7 +19,7 @@
 //
 
 #ifndef PHDOTVERSION
-#define PHDOTVERSION 1.20.1.4
+#define PHDOTVERSION 1.20.1.5
 #endif
 //
 //=======================================================================

@@ -5,7 +5,7 @@
 #include "mutex.h"
 #include "cquerytree2parm.h"
 
-Cquerytree2Parm::Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, char *sqltrec, char **psortField, int sortMethod, const char *business)
+Cquerytree2Parm::Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, const char *sqltrec, char **psortField, int sortMethod, const char *business)
 {
 	this->n = n;
 	this->depth = depth;

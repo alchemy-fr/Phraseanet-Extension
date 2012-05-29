@@ -13,7 +13,7 @@
 
 
 #define QUOTE(x) _QUOTE(x)
-#define _QUOTE(a) #a 
+#define _QUOTE(a) #a
 
 SQLCONN::SQLCONN(char *host, unsigned int port, char *user, char *passwd, char *dbname)
 {
@@ -21,7 +21,7 @@ SQLCONN::SQLCONN(char *host, unsigned int port, char *user, char *passwd, char *
 	this->ukey = NULL;
 	this->connok = false;
 	this->mysql_active_result_id = 0;
-	
+
 	strcpy(this->host, host);
 	strcpy(this->user, user);
 	strcpy(this->passwd, passwd);
@@ -127,13 +127,13 @@ int SQLCONN::escape_string(char *str, int len, char *outbuff)
 		if(outbuff == NULL)
 			return ((2 * len) + 1); // no buffer allocated : simply return the needed size
 		ret = mysql_real_escape_string(&(this->mysql_connx), outbuff, str, len);
-	
+
 	//	this->close();
 	}
 	return(ret);
 }
 
-bool SQLCONN::query(char *sql, int len)
+bool SQLCONN::query(const char *sql, int len)
 {
 // ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	bool ret = false;
@@ -178,7 +178,7 @@ SQLRES::SQLRES(SQLCONN *parent_conn)
 {
 // ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	parent_conn->connect();
-	
+
 	this->parent_conn = parent_conn;
 	this->res = NULL;
 	this->sqlrow.parent_res = this;
@@ -193,7 +193,7 @@ SQLRES::~SQLRES()
 		mysql_free_result(this->res);
 }
 
-bool SQLRES::query(char *sql)
+bool SQLRES::query(const char *sql)
 {
 // ftrace("%s [%d] %s \n", __FILE__, __LINE__, __FUNCTION__);
 	if(mysql_query(&(this->parent_conn->mysql_connx), sql) == 0)
@@ -271,12 +271,12 @@ void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp)
 {
 	qp->sqlconn->connect();
 	MYSQL *xconn = (MYSQL *)(qp->sqlconn->get_native_conn());
-/*	
+/*
 	SQLCONN xconn(this->host, this->port, this->user, this->passwd, this->dbname);
 	xconn.connect();
 */
 	CHRONO chrono;
-	
+
 	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
 
 //	mysql_thread_init();
@@ -496,7 +496,7 @@ void phrasea_query(char *sql, Cquerytree2Parm *qp)
 		return;
 
 	CHRONO chrono;
-	
+
 	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
 
 //	mysql_thread_init();
