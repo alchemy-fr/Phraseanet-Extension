@@ -16,7 +16,7 @@ class SQLCONN
 		~SQLCONN();
 		char *ukey;
 //		bool isok();
-		bool query(char *sql, int len = -1);
+		bool query(const char *sql, int len = -1);
 		const char *error();
 		int escape_string(char *str, int len = -1, char *outbuff = NULL);
 		void phrasea_query(char *sql, Cquerytree2Parm *qp);
@@ -58,7 +58,7 @@ class SQLRES
 	public:
 		SQLRES(SQLCONN *parent_conn);
 		~SQLRES();
-		bool query(char *sql);
+		bool query(const char *sql);
 		class SQLROW *fetch_row();
 		int get_nrows();
 		friend class SQLROW;

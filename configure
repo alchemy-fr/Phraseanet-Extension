@@ -759,6 +759,7 @@ DUMPBIN
 LD
 FGREP
 LIBTOOL
+MYSQL_CONFIG
 CXXCPP
 ac_ct_CXX
 CXXFLAGS
@@ -4085,9 +4086,6 @@ $as_echo "no" >&6; }
 
 
 
-
-
-
 php_enable_phrasea2=no
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable phrasea2 support" >&5
@@ -4136,117 +4134,18 @@ $as_echo "$ext_output" >&6; }
 
 
 
-
 if test "$PHP_PHRASEA2" != "no"; then
 
-  PHRASEAVERSION=
-  MYSQL_DIR=
-  MYSQL_INC_DIR=
-  PHP_LIBDIR=
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking ================================================= phrasea extension version number" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking ================================================= phrasea extension version number" >&5
 $as_echo_n "checking ================================================= phrasea extension version number... " >&6; }
-  if test -r ./_VERSION.h; then
-    PHRASEAVERSION=`cat ./_VERSION.h | egrep -e "#define[[:blank:]]*PHDOTVERSION" | tr -d '\r' | sed  -e "s/#define[[:blank:]]*PHDOTVERSION[[:blank:]]*\(.*\)[[:space:]]*$/\1/"`
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PHRASEAVERSION" >&5
+    PHRASEAVERSION=
+    if test -r ./_VERSION.h; then
+        PHRASEAVERSION=`cat ./_VERSION.h | egrep -e "#define[[:blank:]]*PHDOTVERSION" | tr -d '\r' | sed  -e "s/#define[[:blank:]]*PHDOTVERSION[[:blank:]]*\(.*\)[[:space:]]*$/\1/"`
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PHRASEAVERSION" >&5
 $as_echo "$PHRASEAVERSION" >&6; }
-  else
-    as_fn_error $? "Cannot find file _VERSION.h" "$LINENO" 5
-  fi
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking MySQL includes dir" >&5
-$as_echo_n "checking MySQL includes dir... " >&6; }
-  for i in $PHP_PHRASEA2 /usr/local /usr; do
-    if test -r $i/include/mysql/mysql.h; then
-      MYSQL_DIR=$i
-      MYSQL_INC_DIR=$i/include/mysql
-      break
-    elif test -r $i/include/mysql.h; then
-      MYSQL_DIR=$i
-      MYSQL_INC_DIR=$i/include
-      break
+    else
+        as_fn_error $? "Cannot find file _VERSION.h" "$LINENO" 5
     fi
-  done
-  if test -z "$MYSQL_DIR"; then
-    as_fn_error $? "Cannot find MySQL header files under $PHP_PHRASEA2." "$LINENO" 5
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $MYSQL_INC_DIR" >&5
-$as_echo "$MYSQL_INC_DIR" >&6; }
-
-  if test "$MYSQL_INC_DIR" != "/usr/include"; then
-
-  if test -z "$MYSQL_INC_DIR" || echo "$MYSQL_INC_DIR" | grep '^/' >/dev/null ; then
-    ai_p=$MYSQL_INC_DIR
-  else
-
-    ep_dir="`echo $MYSQL_INC_DIR|$SED 's%/*[^/][^/]*/*$%%'`"
-
-    ep_realdir="`(cd \"$ep_dir\" && pwd)`"
-    ai_p="$ep_realdir/`basename \"$MYSQL_INC_DIR\"`"
-  fi
-
-
-
-  unique=`echo $ai_p|$SED 's/[^a-zA-Z0-9]/_/g'`
-
-  cmd="echo $ac_n \"\$INCLUDEPATH$unique$ac_c\""
-  if test -n "$unique" && test "`eval $cmd`" = "" ; then
-    eval "INCLUDEPATH$unique=set"
-
-      if test ""; then
-        INCLUDES="-I$ai_p $INCLUDES"
-      else
-        INCLUDES="$INCLUDES -I$ai_p"
-      fi
-
-  fi
-
-  fi
-
-  fi
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking MySQL library" >&5
-$as_echo_n "checking MySQL library... " >&6; }
-  if test "$enable_maintainer_zts" = "yes"; then
-    MYSQL_LIBNAME=mysqlclient_r
-  else
-    MYSQL_LIBNAME=mysqlclient
-  fi
-  case $host_alias in
-    *netware*)
-      MYSQL_LIBNAME=mysql
-      ;;
-  esac
-
-    if test -z "$PHP_LIBDIR"; then
-    PHP_LIBDIR=lib
-  fi
-
-  for i in $PHP_LIBDIR $PHP_LIBDIR/mysql; do
-
-  str="$MYSQL_DIR/$i/lib$MYSQL_LIBNAME.*"
-  for j in `echo $str`; do
-    if test -r $j; then
-      MYSQL_LIB_DIR=$MYSQL_DIR/$i
-      break 2
-    fi
-  done
-
-  done
-
-  if test -z "$MYSQL_LIB_DIR"; then
-    as_fn_error $? "Cannot find lib$MYSQL_LIBNAME under $MYSQL_DIR." "$LINENO" 5
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $MYSQL_LIB_DIR / $MYSQL_LIBNAME" >&5
-$as_echo "$MYSQL_LIB_DIR / $MYSQL_LIBNAME" >&6; }
-  fi
-
-
-
-
-
-
-
 
 
 
@@ -4644,109 +4543,116 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
     php_cxx_done=yes
   fi
 
-  CPPFLAGS=-Wno-write-strings
+    # CPPFLAGS="$CPPFLAGS -Wno-write-strings"
+    # CPPFLAGS="$CPPFLAGS -g3"
+    # CPPFLAGS="$CPPFLAGS -gdwarf-2"
 
-    CC=g++
+        CC="g++"
+    # CC="$CC -g3"
+    # CC="$CC -gdwarf-2"
 
-
-
-  if test "$ext_shared" = "yes"; then
-    PHRASEA2_SHARED_LIBADD="-l$MYSQL_LIBNAME $PHRASEA2_SHARED_LIBADD"
-    if test -n "$MYSQL_LIB_DIR"; then
-
-  if test "$MYSQL_LIB_DIR" != "/usr/$PHP_LIBDIR" && test "$MYSQL_LIB_DIR" != "/usr/lib"; then
-
-  if test -z "$MYSQL_LIB_DIR" || echo "$MYSQL_LIB_DIR" | grep '^/' >/dev/null ; then
-    ai_p=$MYSQL_LIB_DIR
-  else
-
-    ep_dir="`echo $MYSQL_LIB_DIR|$SED 's%/*[^/][^/]*/*$%%'`"
-
-    ep_realdir="`(cd \"$ep_dir\" && pwd)`"
-    ai_p="$ep_realdir/`basename \"$MYSQL_LIB_DIR\"`"
-  fi
-
-
-      if test "$ext_shared" = "yes"; then
-        PHRASEA2_SHARED_LIBADD="-L$ai_p $PHRASEA2_SHARED_LIBADD"
-        test -n "$ld_runpath_switch" && PHRASEA2_SHARED_LIBADD="$ld_runpath_switch$ai_p $PHRASEA2_SHARED_LIBADD"
-      else
-
-
-
-  unique=`echo $ai_p|$SED 's/[^a-zA-Z0-9]/_/g'`
-
-  cmd="echo $ac_n \"\$LIBPATH$unique$ac_c\""
-  if test -n "$unique" && test "`eval $cmd`" = "" ; then
-    eval "LIBPATH$unique=set"
-
-    test -n "$ld_runpath_switch" && LDFLAGS="$LDFLAGS $ld_runpath_switch$ai_p"
-    LDFLAGS="$LDFLAGS -L$ai_p"
-    PHP_RPATHS="$PHP_RPATHS $ai_p"
-
-  fi
-
-
-      fi
-
-  fi
-
-    fi
-  else
-
-
-  if test -n "$MYSQL_LIB_DIR"; then
-
-  if test "$MYSQL_LIB_DIR" != "/usr/$PHP_LIBDIR" && test "$MYSQL_LIB_DIR" != "/usr/lib"; then
-
-  if test -z "$MYSQL_LIB_DIR" || echo "$MYSQL_LIB_DIR" | grep '^/' >/dev/null ; then
-    ai_p=$MYSQL_LIB_DIR
-  else
-
-    ep_dir="`echo $MYSQL_LIB_DIR|$SED 's%/*[^/][^/]*/*$%%'`"
-
-    ep_realdir="`(cd \"$ep_dir\" && pwd)`"
-    ai_p="$ep_realdir/`basename \"$MYSQL_LIB_DIR\"`"
-  fi
-
-
-
-
-
-  unique=`echo $ai_p|$SED 's/[^a-zA-Z0-9]/_/g'`
-
-  cmd="echo $ac_n \"\$LIBPATH$unique$ac_c\""
-  if test -n "$unique" && test "`eval $cmd`" = "" ; then
-    eval "LIBPATH$unique=set"
-
-    test -n "$ld_runpath_switch" && LDFLAGS="$LDFLAGS $ld_runpath_switch$ai_p"
-    LDFLAGS="$LDFLAGS -L$ai_p"
-    PHP_RPATHS="$PHP_RPATHS $ai_p"
-
-  fi
-
-
-
-  fi
-
-  fi
-
-
-  case $MYSQL_LIBNAME in
-  c|c_r|pthread*) ;;
-  *)
-      LIBS="-l$MYSQL_LIBNAME $LIBS"
-   ;;
-  esac
-
-
-
-
-  fi
-
-
+    # PHP_ADD_LIBRARY_WITH_PATH($MYSQL_LIBNAME, $MYSQL_LIB_DIR, PHRASEA2_SHARED_LIBADD)
 
   PHP_VAR_SUBST="$PHP_VAR_SUBST PHRASEA2_SHARED_LIBADD"
+
+
+        # Extract the first word of "mysql_config", so it can be a program name with args.
+set dummy mysql_config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if test "${ac_cv_path_MYSQL_CONFIG+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $MYSQL_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_MYSQL_CONFIG="$MYSQL_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+as_dummy="$PATH/usr/bin:/usr/local/mysql/bin"
+for as_dir in $as_dummy
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_MYSQL_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+MYSQL_CONFIG=$ac_cv_path_MYSQL_CONFIG
+if test -n "$MYSQL_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $MYSQL_CONFIG" >&5
+$as_echo "$MYSQL_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+    if test "x$MYSQL_CONFIG" = "x"; then
+        as_fn_error $? "mysql_config program not found" "$LINENO" 5
+        exit 3
+    else
+        MYSQLCFLAGS=`$MYSQL_CONFIG --cflags`
+        CPPFLAGS="${CPPFLAGS} $MYSQLCFLAGS"
+
+        if test "$enable_maintainer_zts" = "yes"; then
+            LBASE=`$MYSQL_CONFIG --libs_r`
+        else
+            LBASE=`$MYSQL_CONFIG --libs`
+        fi
+        LDFLAGS="${LDFLAGS} $LBASE"
+    fi
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for my_init in -lmysqlclient" >&5
+$as_echo_n "checking for my_init in -lmysqlclient... " >&6; }
+if test "${ac_cv_lib_mysqlclient_my_init+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lmysqlclient  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char my_init ();
+int
+main ()
+{
+return my_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_mysqlclient_my_init=yes
+else
+  ac_cv_lib_mysqlclient_my_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_mysqlclient_my_init" >&5
+$as_echo "$ac_cv_lib_mysqlclient_my_init" >&6; }
+if test "x$ac_cv_lib_mysqlclient_my_init" = x""yes; then :
+  LIBMYSQL="OK"
+else
+  LIBMYSQL="BAD"
+fi
 
 
 
@@ -4778,16 +4684,16 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
   old_IFS=$IFS
   for ac_src in phrasea2.cpp \
-								phrasea_engine/cache.cpp\
-								phrasea_engine/fetchresults.cpp \
-								phrasea_engine/phrasea_clock_t.cpp \
-								phrasea_engine/qtree.cpp \
-								phrasea_engine/query.cpp \
-								phrasea_engine/session.cpp \
-								phrasea_engine/sql.cpp \
-								phrasea_engine/cquerytree2parm.cpp \
-								phrasea_engine/mutex.cpp \
-				; do
+                        phrasea_engine/cache.cpp\
+                        phrasea_engine/fetchresults.cpp \
+                        phrasea_engine/phrasea_clock_t.cpp \
+                        phrasea_engine/qtree.cpp \
+                        phrasea_engine/query.cpp \
+                        phrasea_engine/session.cpp \
+                        phrasea_engine/sql.cpp \
+                        phrasea_engine/cquerytree2parm.cpp \
+                        phrasea_engine/mutex.cpp \
+                        ; do
 
       IFS=.
       set $ac_src
@@ -4837,16 +4743,16 @@ EOF
 
   old_IFS=$IFS
   for ac_src in phrasea2.cpp \
-								phrasea_engine/cache.cpp\
-								phrasea_engine/fetchresults.cpp \
-								phrasea_engine/phrasea_clock_t.cpp \
-								phrasea_engine/qtree.cpp \
-								phrasea_engine/query.cpp \
-								phrasea_engine/session.cpp \
-								phrasea_engine/sql.cpp \
-								phrasea_engine/cquerytree2parm.cpp \
-								phrasea_engine/mutex.cpp \
-				; do
+                        phrasea_engine/cache.cpp\
+                        phrasea_engine/fetchresults.cpp \
+                        phrasea_engine/phrasea_clock_t.cpp \
+                        phrasea_engine/qtree.cpp \
+                        phrasea_engine/query.cpp \
+                        phrasea_engine/session.cpp \
+                        phrasea_engine/sql.cpp \
+                        phrasea_engine/cquerytree2parm.cpp \
+                        phrasea_engine/mutex.cpp \
+                        ; do
 
       IFS=.
       set $ac_src
@@ -4977,16 +4883,16 @@ _ACEOF
 
   old_IFS=$IFS
   for ac_src in phrasea2.cpp \
-								phrasea_engine/cache.cpp\
-								phrasea_engine/fetchresults.cpp \
-								phrasea_engine/phrasea_clock_t.cpp \
-								phrasea_engine/qtree.cpp \
-								phrasea_engine/query.cpp \
-								phrasea_engine/session.cpp \
-								phrasea_engine/sql.cpp \
-								phrasea_engine/cquerytree2parm.cpp \
-								phrasea_engine/mutex.cpp \
-				; do
+                        phrasea_engine/cache.cpp\
+                        phrasea_engine/fetchresults.cpp \
+                        phrasea_engine/phrasea_clock_t.cpp \
+                        phrasea_engine/qtree.cpp \
+                        phrasea_engine/query.cpp \
+                        phrasea_engine/session.cpp \
+                        phrasea_engine/sql.cpp \
+                        phrasea_engine/cquerytree2parm.cpp \
+                        phrasea_engine/mutex.cpp \
+                        ; do
 
       IFS=.
       set $ac_src
@@ -5033,16 +4939,16 @@ EOF
 
   old_IFS=$IFS
   for ac_src in phrasea2.cpp \
-								phrasea_engine/cache.cpp\
-								phrasea_engine/fetchresults.cpp \
-								phrasea_engine/phrasea_clock_t.cpp \
-								phrasea_engine/qtree.cpp \
-								phrasea_engine/query.cpp \
-								phrasea_engine/session.cpp \
-								phrasea_engine/sql.cpp \
-								phrasea_engine/cquerytree2parm.cpp \
-								phrasea_engine/mutex.cpp \
-				; do
+                        phrasea_engine/cache.cpp\
+                        phrasea_engine/fetchresults.cpp \
+                        phrasea_engine/phrasea_clock_t.cpp \
+                        phrasea_engine/qtree.cpp \
+                        phrasea_engine/query.cpp \
+                        phrasea_engine/session.cpp \
+                        phrasea_engine/sql.cpp \
+                        phrasea_engine/cquerytree2parm.cpp \
+                        phrasea_engine/mutex.cpp \
+                        ; do
 
       IFS=.
       set $ac_src
@@ -5568,13 +5474,13 @@ if test "${lt_cv_nm_interface+set}" = set; then :
 else
   lt_cv_nm_interface="BSD nm"
   echo "int some_variable = 0;" > conftest.$ac_ext
-  (eval echo "\"\$as_me:5571: $ac_compile\"" >&5)
+  (eval echo "\"\$as_me:5477: $ac_compile\"" >&5)
   (eval "$ac_compile" 2>conftest.err)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:5574: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
+  (eval echo "\"\$as_me:5480: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
   (eval "$NM \"conftest.$ac_objext\"" 2>conftest.err > conftest.out)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:5577: output\"" >&5)
+  (eval echo "\"\$as_me:5483: output\"" >&5)
   cat conftest.out >&5
   if $GREP 'External.*some_variable' conftest.out > /dev/null; then
     lt_cv_nm_interface="MS dumpbin"
@@ -6779,7 +6685,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 6782 "configure"' > conftest.$ac_ext
+  echo '#line 6688 "configure"' > conftest.$ac_ext
   if { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_compile\""; } >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -8541,10 +8447,6 @@ _lt_linker_boilerplate=`cat conftest.err`
 $RM -r conftest*
 
 
-## CAVEAT EMPTOR:
-## There is no encapsulation within the following macros, do not change
-## the running order or otherwise move them around unless you know exactly
-## what you are doing...
 if test -n "$compiler"; then
 
 lt_prog_compiler_no_builtin_flag=
@@ -8570,11 +8472,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8573: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8475: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:8577: \$? = $ac_status" >&5
+   echo "$as_me:8479: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -8909,11 +8811,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8912: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8814: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:8916: \$? = $ac_status" >&5
+   echo "$as_me:8818: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -9014,11 +8916,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:9017: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8919: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:9021: \$? = $ac_status" >&5
+   echo "$as_me:8923: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -9069,11 +8971,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:9072: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8974: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:9076: \$? = $ac_status" >&5
+   echo "$as_me:8978: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -11453,7 +11355,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11456 "configure"
+#line 11358 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11549,7 +11451,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11552 "configure"
+#line 11454 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -13505,11 +13407,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13508: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13410: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13512: \$? = $ac_status" >&5
+   echo "$as_me:13414: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -13604,11 +13506,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13607: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13509: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13611: \$? = $ac_status" >&5
+   echo "$as_me:13513: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -13656,11 +13558,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13659: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13561: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13663: \$? = $ac_status" >&5
+   echo "$as_me:13565: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
