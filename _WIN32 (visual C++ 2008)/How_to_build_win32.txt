@@ -1,0 +1,27 @@
+if you see this kind of error(s) when compiling :
+c:\php-5.3.10-src\zend\zend_config.w32.h(25) : fatal error C1083: Cannot open include file: '../main/config.w32.h': No such file or directory
+
+open a terminal, cd to the php sources (here: C:\php-5.3.10-src), then :
+
+C:\php-5.3.10-src>buildconf.bat
+
+C:\php-5.3.10-src>"C:\Program Files\Microsoft Visual Studio 9.0\VC\vcvarsall.bat"
+(or "C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\vcvarsall.bat" if your system is win64)
+
+then edit configure.js, comment 'bison' lines :
+//if (!PATH_PROG('bison')) {
+//	ERROR('bison is required')
+//}
+
+finaly :
+
+C:\php-5.3.10-src>cscript /nologo configure.js
+
+
+
+
+
+=======================================================
+mysql : disable strict mode !
+
+=======================================================

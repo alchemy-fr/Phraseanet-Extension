@@ -66,7 +66,7 @@
 				GenerateXMLDocumentationFiles="true"
 				BrowseInformation="1"
 				WarningLevel="3"
-				SuppressStartupBanner="true"
+				SuppressStartupBanner="false"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -131,7 +131,7 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				CommandLine=""
+				CommandLine="psservice stop Apache2.2"
 				ExcludedFromBuild="false"
 			/>
 			<Tool
@@ -156,8 +156,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="&quot;C:\php-5.2.13&quot;;&quot;C:\php-5.2.13\main&quot;;&quot;C:\php-5.2.13\Zend&quot;;&quot;C:\php-5.2.13\TSRM&quot;;C:\mysql\include"
-				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS;TRACE_ERAM=0;_USE_32BIT_TIME_T;ZEND_DEBUG=0;ZTS;PHRASEA2_EXPORTS;COMPILE_DL_PHRASEA2;HAVE_PHRSEA2=1;WIN32;_WINDOWS;_USRDLL;ZEND_WIN32;PHP_WIN32;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION);MYSQLENCODE=utf8;noPHP_COMPILER_ID=&quot;,VC8&quot;"
+				AdditionalIncludeDirectories="&quot;C:\php-5.3.10&quot;;&quot;C:\php-5.3.10\main&quot;;&quot;C:\php-5.3.10\Zend&quot;;&quot;C:\php-5.3.10\TSRM&quot;;&quot;C:\Program Files\MySQL\MySQL Server 5.5\include&quot;"
+				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS;TRACE_ERAM=0;_USE_32BIT_TIME_T;ZEND_DEBUG=0;ZTS;PHRASEA2_EXPORTS;COMPILE_DL_PHRASEA2;HAVE_PHRSEA2=1;WIN32;_WINDOWS;_USRDLL;ZEND_WIN32;PHP_WIN32;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION);MYSQLENCODE=utf8"
 				IgnoreStandardIncludePath="false"
 				StringPooling="true"
 				RuntimeLibrary="2"
@@ -167,7 +167,7 @@
 				ObjectFile="$(OutDir)/"
 				ProgramDataBaseFileName="$(OutDir)/"
 				WarningLevel="3"
-				SuppressStartupBanner="true"
+				SuppressStartupBanner="false"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -187,7 +187,7 @@
 				OutputFile="$(OutDir)/php_phrasea2_UTF-8_$(PHDOTVERSION).dll"
 				Version="$(PHDOTVERSION)"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="c:\mysql\lib\opt;&quot;C:\php-5.3.3-Win32-VC6-x86\dev&quot;"
+				AdditionalLibraryDirectories="&quot;C:\Program Files\PHP\dev&quot;;&quot;C:\Program Files\MySQL\MySQL Server 5.5\lib&quot;"
 				IgnoreAllDefaultLibraries="false"
 				ProgramDatabaseFile="$(OutDir)/php_mysql.pdb"
 				RandomizedBaseAddress="1"
@@ -218,7 +218,419 @@
 			<Tool
 				Name="VCPostBuildEventTool"
 				Description="copy de la dll dans php"
-				CommandLine="copy $(OutDir)\$(TargetFileName) c:\php\ext\$(TargetFileName)&#x0D;&#x0A;copy $(OutDir)\$(TargetFileName) &quot;c:\program files\php\ext\php_phrasea2.dll&quot;&#x0D;&#x0A;"
+				CommandLine="copy $(OutDir)\$(TargetFileName) &quot;c:\program files\php\ext\php_phrasea2.dll&quot;&#x0D;&#x0A;&#x0D;&#x0A;psservice start Apache2.2&#x0D;&#x0A;"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_TS_UTF-8_debug|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="2"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops;.\custom_props.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			ManagedExtensions="0"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+				CommandLine=":CheckServiceStopped&#x0D;&#x0A;psservice query Apache2.2 | FIND &quot;1  STOPPED&quot;&#x0D;&#x0A;IF %errorlevel%==0 GOTO ServiceStopped&#x0D;&#x0A;@ECHO Waiting for service to stop...&#x0D;&#x0A;@ping 127.0.0.1 -n 5 -w 1000 &gt; nul&#x0D;&#x0A;GOTO CheckServiceStopped&#x0D;&#x0A;:ServiceStopped&#x0D;&#x0A;"
+				ExcludedFromBuild="false"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				PreprocessorDefinitions="NDEBUG"
+				MkTypLibCompatible="true"
+				SuppressStartupBanner="true"
+				TargetEnvironment="1"
+				TypeLibraryName="Release_TS/phrasea2.tlb"
+				HeaderFileName=""
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="0"
+				InlineFunctionExpansion="1"
+				AdditionalIncludeDirectories="&quot;C:\php-5.3.10&quot;;&quot;C:\php-5.3.10\main&quot;;&quot;C:\php-5.3.10\Zend&quot;;&quot;C:\php-5.3.10\TSRM&quot;;&quot;C:\Program Files\MySQL\MySQL Server 5.5\include&quot;"
+				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS;TRACE_ERAM=0;_USE_32BIT_TIME_T;ZEND_DEBUG=0;ZTS;PHRASEA2_EXPORTS;COMPILE_DL_PHRASEA2;HAVE_PHRSEA2=1;WIN32;_WINDOWS;_USRDLL;ZEND_WIN32;PHP_WIN32;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION);MYSQLENCODE=utf8"
+				IgnoreStandardIncludePath="false"
+				StringPooling="false"
+				RuntimeLibrary="1"
+				EnableFunctionLevelLinking="true"
+				PrecompiledHeaderFile="$(OutDir)/phrasea2.pch"
+				AssemblerListingLocation="$(OutDir)/"
+				ObjectFile="$(OutDir)/"
+				ProgramDataBaseFileName="$(OutDir)/"
+				WarningLevel="3"
+				SuppressStartupBanner="false"
+				DebugInformationFormat="3"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="0"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="libmySQL.lib php5ts.lib"
+				ShowProgress="0"
+				OutputFile="$(OutDir)/php_phrasea2_UTF-8_$(PHDOTVERSION).dll"
+				Version="$(PHDOTVERSION)"
+				LinkIncremental="1"
+				AdditionalLibraryDirectories="&quot;C:\Program Files\PHP\dev&quot;;&quot;C:\Program Files\MySQL\MySQL Server 5.5\lib&quot;"
+				IgnoreAllDefaultLibraries="false"
+				GenerateDebugInformation="true"
+				AssemblyDebug="1"
+				ProgramDatabaseFile="$(OutDir)/php_phrasea2.pdb"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
+				ImportLibrary=".\$(OutDir)/php_phrasea2.lib"
+				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile="$(OutDir)/phrasea2.bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="copy de la dll dans php"
+				CommandLine="copy $(OutDir)\$(TargetFileName) &quot;c:\program files\php\ext\php_phrasea2.dll&quot;&#x0D;&#x0A;copy $(OutDir)\php_phrasea2.pdb &quot;c:\program files\php\ext\php_phrasea2.pdb&quot;&#x0D;&#x0A;&#x0D;&#x0A;psservice start Apache2.2&#x0D;&#x0A;"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_TS_php-5.4.0|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="2"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops;.\custom_props.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+				CommandLine="rem psservice stop Apache2.2"
+				ExcludedFromBuild="false"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				PreprocessorDefinitions="NDEBUG"
+				MkTypLibCompatible="true"
+				SuppressStartupBanner="true"
+				TargetEnvironment="1"
+				TypeLibraryName="Release_TS/phrasea2.tlb"
+				HeaderFileName=""
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="2"
+				InlineFunctionExpansion="1"
+				AdditionalIncludeDirectories="&quot;C:\php-5.4.0-src&quot;;&quot;C:\php-5.4.0-src\main&quot;;&quot;C:\php-5.4.0-src\Zend&quot;;&quot;C:\php-5.4.0-src\TSRM&quot;;&quot;C:\Program Files (x86)\MySQL\MySQL Server 5.5\include&quot;"
+				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS;TRACE_ERAM=0;_USE_32BIT_TIME_T;ZEND_DEBUG=0;ZTS;PHRASEA2_EXPORTS;COMPILE_DL_PHRASEA2;HAVE_PHRSEA2=1;WIN32;_WINDOWS;_USRDLL;ZEND_WIN32;PHP_WIN32;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION);MYSQLENCODE=utf8"
+				IgnoreStandardIncludePath="false"
+				StringPooling="true"
+				RuntimeLibrary="2"
+				EnableFunctionLevelLinking="true"
+				PrecompiledHeaderFile="$(OutDir)/phrasea2.pch"
+				AssemblerListingLocation="$(OutDir)/"
+				ObjectFile="$(OutDir)/"
+				ProgramDataBaseFileName="$(OutDir)/"
+				WarningLevel="3"
+				SuppressStartupBanner="false"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="0"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="php5ts.lib libmysql.lib"
+				ShowProgress="0"
+				OutputFile="$(OutDir)/php_phrasea2_UTF-8_$(PHDOTVERSION).dll"
+				Version="$(PHDOTVERSION)"
+				LinkIncremental="1"
+				AdditionalLibraryDirectories="C:\PHP\dev;&quot;C:\Program Files (x86)\MySQL\MySQL Server 5.5\lib&quot;"
+				IgnoreAllDefaultLibraries="false"
+				ProgramDatabaseFile="$(OutDir)/php_mysql.pdb"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
+				ImportLibrary=".\$(OutDir)/php_phrasea2.lib"
+				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile="$(OutDir)/phrasea2.bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="copy de la dll dans php"
+				CommandLine="copy $(OutDir)\$(TargetFileName) &quot;c:\program files\php\ext\php_phrasea2.dll&quot;&#x0D;&#x0A;&#x0D;&#x0A;rem psservice start Apache2.2&#x0D;&#x0A;"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_TS_php-5.4.0_Win64|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="2"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops;.\custom_props.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+				CommandLine="rem psservice stop Apache2.2"
+				ExcludedFromBuild="false"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				PreprocessorDefinitions="NDEBUG"
+				MkTypLibCompatible="true"
+				SuppressStartupBanner="true"
+				TargetEnvironment="1"
+				TypeLibraryName="Release_TS/phrasea2.tlb"
+				HeaderFileName=""
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="2"
+				InlineFunctionExpansion="1"
+				AdditionalIncludeDirectories="&quot;C:\php-5.4.0-src&quot;;&quot;C:\php-5.4.0-src\main&quot;;&quot;C:\php-5.4.0-src\Zend&quot;;&quot;C:\php-5.4.0-src\TSRM&quot;;&quot;C:\Program Files (x86)\MySQL\MySQL Server 5.5\include&quot;"
+				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS;TRACE_ERAM=0;_USE_32BIT_TIME_T;ZEND_DEBUG=0;ZTS;PHRASEA2_EXPORTS;COMPILE_DL_PHRASEA2;HAVE_PHRSEA2=1;WIN32;_WINDOWS;_USRDLL;ZEND_WIN32;PHP_WIN32;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION);MYSQLENCODE=utf8;noPHP_COMPILER_ID=&quot;,VC8&quot;"
+				IgnoreStandardIncludePath="false"
+				StringPooling="true"
+				RuntimeLibrary="2"
+				EnableFunctionLevelLinking="true"
+				PrecompiledHeaderFile="$(OutDir)/phrasea2.pch"
+				AssemblerListingLocation="$(OutDir)/"
+				ObjectFile="$(OutDir)/"
+				ProgramDataBaseFileName="$(OutDir)/"
+				WarningLevel="3"
+				SuppressStartupBanner="false"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="0"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="php5ts.lib libmysql.lib"
+				ShowProgress="0"
+				OutputFile="$(OutDir)/php_phrasea2_UTF-8_$(PHDOTVERSION).dll"
+				Version="$(PHDOTVERSION)"
+				LinkIncremental="1"
+				AdditionalLibraryDirectories="C:\PHP\dev;&quot;C:\Program Files (x86)\MySQL\MySQL Server 5.5\lib&quot;"
+				IgnoreAllDefaultLibraries="false"
+				ProgramDatabaseFile="$(OutDir)/php_mysql.pdb"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
+				ImportLibrary=".\$(OutDir)/php_phrasea2.lib"
+				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile="$(OutDir)/phrasea2.bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="copy de la dll dans php"
+				CommandLine="copy $(OutDir)\$(TargetFileName) &quot;c:\program files\php\ext\php_phrasea2.dll&quot;&#x0D;&#x0A;&#x0D;&#x0A;rem psservice start Apache2.2&#x0D;&#x0A;"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_TS_php-5.3.10|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="2"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops;.\custom_props.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+				CommandLine="rem psservice stop Apache2.2"
+				ExcludedFromBuild="false"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				PreprocessorDefinitions="NDEBUG"
+				MkTypLibCompatible="true"
+				SuppressStartupBanner="true"
+				TargetEnvironment="1"
+				TypeLibraryName="Release_TS/phrasea2.tlb"
+				HeaderFileName=""
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="2"
+				InlineFunctionExpansion="1"
+				AdditionalIncludeDirectories="&quot;C:\php-5.3.10-src&quot;;&quot;C:\php-5.3.10-src\main&quot;;&quot;C:\php-5.3.10-src\Zend&quot;;&quot;C:\php-5.3.10-src\TSRM&quot;;&quot;C:\Program Files (x86)\MySQL\MySQL Server 5.5\include&quot;"
+				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS;TRACE_ERAM=0;_USE_32BIT_TIME_T;ZEND_DEBUG=0;ZTS;PHRASEA2_EXPORTS;COMPILE_DL_PHRASEA2;HAVE_PHRSEA2=1;WIN32;_WINDOWS;_USRDLL;ZEND_WIN32;PHP_WIN32;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION);MYSQLENCODE=utf8"
+				IgnoreStandardIncludePath="false"
+				StringPooling="true"
+				RuntimeLibrary="2"
+				EnableFunctionLevelLinking="true"
+				PrecompiledHeaderFile="$(OutDir)/phrasea2.pch"
+				AssemblerListingLocation="$(OutDir)/"
+				ObjectFile="$(OutDir)/"
+				ProgramDataBaseFileName="$(OutDir)/"
+				WarningLevel="3"
+				SuppressStartupBanner="false"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="0"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="php5ts.lib libmysql.lib"
+				ShowProgress="0"
+				OutputFile="$(OutDir)/php_phrasea2_UTF-8_$(PHDOTVERSION).dll"
+				Version="$(PHDOTVERSION)"
+				LinkIncremental="1"
+				AdditionalLibraryDirectories="&quot;C:\Program Files (x86)\PHP\dev&quot;;&quot;C:\Program Files (x86)\MySQL\MySQL Server 5.5\lib&quot;"
+				IgnoreAllDefaultLibraries="false"
+				ProgramDatabaseFile="$(OutDir)/php_mysql.pdb"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
+				ImportLibrary=".\$(OutDir)/php_phrasea2.lib"
+				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile="$(OutDir)/phrasea2.bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="copy de la dll dans php"
+				CommandLine="copy $(OutDir)\$(TargetFileName) &quot;c:\program files\php\ext\php_phrasea2.dll&quot;&#x0D;&#x0A;&#x0D;&#x0A;rem psservice start Apache2.2&#x0D;&#x0A;"
 			/>
 		</Configuration>
 	</Configurations>
@@ -280,6 +692,50 @@
 						ShowProgress="true"
 					/>
 				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_UTF-8_debug|Win32"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions="NDEBUG;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION)"
+						Culture="0"
+						AdditionalIncludeDirectories="&quot;C:\Program Files\Microsoft Visual Studio\VC98\MFC\Include&quot;;./res"
+						ShowProgress="true"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_php-5.4.0|Win32"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions="NDEBUG;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION)"
+						Culture="0"
+						AdditionalIncludeDirectories="&quot;C:\Program Files\Microsoft Visual Studio\VC98\MFC\Include&quot;;./res"
+						ShowProgress="true"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_php-5.4.0_Win64|Win32"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions="NDEBUG;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION)"
+						Culture="0"
+						AdditionalIncludeDirectories="&quot;C:\Program Files\Microsoft Visual Studio\VC98\MFC\Include&quot;;./res"
+						ShowProgress="true"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_php-5.3.10|Win32"
+					>
+					<Tool
+						Name="VCResourceCompilerTool"
+						PreprocessorDefinitions="NDEBUG;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION)"
+						Culture="0"
+						AdditionalIncludeDirectories="&quot;C:\Program Files\Microsoft Visual Studio\VC98\MFC\Include&quot;;./res"
+						ShowProgress="true"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\php_phrasea2\resource.h"
@@ -311,6 +767,14 @@
 			</File>
 			<File
 				RelativePath="..\phrasea_engine\fetchresults.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\phrasea_engine\ftrace.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\phrasea_engine\ftrace.h"
 				>
 			</File>
 			<File
@@ -376,12 +840,72 @@
 						Name="VCCLCompilerTool"
 					/>
 				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_UTF-8_debug|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_php-5.4.0|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_php-5.4.0_Win64|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_php-5.3.10|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\phrasea_engine\trace_memory.h"
 				>
 				<FileConfiguration
 					Name="Release_TS_UTF-8|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_UTF-8_debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_php-5.4.0|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_php-5.4.0_Win64|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release_TS_php-5.3.10|Win32"
 					>
 					<Tool
 						Name="VCCustomBuildTool"
@@ -399,6 +923,10 @@
 		</Filter>
 		<File
 			RelativePath="..\changelog.txt"
+			>
+		</File>
+		<File
+			RelativePath=".\How_to_build_win32.txt"
 			>
 		</File>
 	</Files>
