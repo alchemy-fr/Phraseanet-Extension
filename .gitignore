@@ -5,18 +5,18 @@
 /nbproject/*
 /phrasea_engine/.libs/
 /.libs/
-autom4te.cache/*
-/_WIN32 (visual C++ 2008)/Phraseanet-Extension.ncb
+/autom4te.cache/
+*.ncb
 /_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/
-/_WIN32 (visual C++ 2008)/Phraseanet-Extension.vcproj.*.user
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/*.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/*.intermediate.manifest
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/mt.dep
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/vc90.idb
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/phrasea2.res
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/BuildLog.htm
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/php_phrasea2.exp
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/php_phrasea2.lib
+*.vcproj.*.user
+*.obj
+*.intermediate.manifest
+*.dep
+*.idb
+*.res
+BuildLog.htm
+*.exp
+*.lib
 /Makefile
 /Makefile.fragments
 /Makefile.objects
@@ -28,4 +28,5 @@ autom4te.cache/*
 /config.nice
 /config.status
 /rmake.txt
+/run-tests.php
 /libtool
