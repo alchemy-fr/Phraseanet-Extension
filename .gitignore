@@ -1,4 +1,5 @@
 *.svn*
+.deps
 .project
 .cproject
 config.log
@@ -9,46 +10,27 @@ autom4te.cache
 /nbproject/*
 /phrasea_engine/.libs/
 /.libs/
-/_WIN32 (visual C++ 2008)/Phraseanet-Extension.vcproj.ALCHEMY2K3.Administrateur.user
-/_WIN32 (visual C++ 2008)/Phraseanet-Extension.vcproj.WIN-TAVFCPDEDQV.Administrateur.user
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/mutex.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/php_phrasea2_UTF-8_1.18.3.0.dll.intermediate.manifest
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/phrasea_clock_t.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/ftrace.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/sql.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/cquerytree2parm.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/utils.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/query.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/phrasea2.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/php_phrasea2_UTF-8_1.18.3.1.dll.intermediate.manifest
+autom4te.cache/*
+/_WIN32 (visual C++ 2008)/Phraseanet-Extension.ncb
+/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/
+/_WIN32 (visual C++ 2008)/Phraseanet-Extension.vcproj.*.user
+/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/*.obj
+/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/*.intermediate.manifest
 /_WIN32 (visual C++ 2008)/Release_TS_UTF-8/mt.dep
 /_WIN32 (visual C++ 2008)/Release_TS_UTF-8/vc90.idb
 /_WIN32 (visual C++ 2008)/Release_TS_UTF-8/phrasea2.res
 /_WIN32 (visual C++ 2008)/Release_TS_UTF-8/BuildLog.htm
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/fetchresults.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/session.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/php_phrasea2_UTF-8_1.18.2.0.dll.intermediate.manifest
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/qtree.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/cache.obj
 /_WIN32 (visual C++ 2008)/Release_TS_UTF-8/php_phrasea2.exp
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/cquerytree2parm.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/fetchresults.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/utils.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/php_phrasea2_UTF-8_1.18.3.0.dll.intermediate.manifest
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/ftrace.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/phrasea_clock_t.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/vc90.pdb
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/sql.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/qtree.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/php_phrasea2_UTF-8_1.18.2.0.dll.intermediate.manifest
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/vc90.idb
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/cache.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/query.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/phrasea2.res
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/BuildLog.htm
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/phrasea2.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/php_phrasea2.exp
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/php_phrasea2.pdb
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/mt.dep
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/session.obj
-/_WIN32 (visual C++ 2008)/Release_TS_UTF-8_debug/mutex.obj
+/_WIN32 (visual C++ 2008)/Release_TS_UTF-8/php_phrasea2.lib
+/Makefile
+/Makefile.fragments
+/Makefile.objects
+/Makefile.global
+/config.m4-20120528-2
+/config.m4-20120528
+/config.h
+/config.log
+/config.nice
+/config.status
+/rmake.txt
+/libtool
