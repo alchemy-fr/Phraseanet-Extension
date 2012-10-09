@@ -74,17 +74,13 @@ ZEND_FUNCTION(phrasea_query2)
 			{
 				RETURN_FALSE;
 			}
-			if(zsitelen > 32)
-				zsite[32] = '\0';
 			break;
+
 		case 9:  // session, baseid, collist, quarray, site, userid, noCache, multidocMode, sortfield
 			if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, (char *) "llaaslbls", &session, &sbasid, &zcolllist, &zqarray, &zsite, &zsitelen, &userid, &noCache, &multidocMode, &zsortfield, &zsortfieldlen) == FAILURE)
 			{
 				RETURN_FALSE;
 			}
-
-			if(zsitelen > 32)
-				zsite[32] = '\0';
 
 			if(zsortfieldlen > 0)
 			{
@@ -114,14 +110,12 @@ ZEND_FUNCTION(phrasea_query2)
 			if(zsortfieldlen == 0)
 				zsortfield = NULL;
 			break;
+
 		case 10: // session, baseid, collist, quarray, site, userid, noCache, multidocMode, sortfield, search_business
 			if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, (char *) "llaaslblsa", &session, &sbasid, &zcolllist, &zqarray, &zsite, &zsitelen, &userid, &noCache, &multidocMode, &zsortfield, &zsortfieldlen, &zbusiness) == FAILURE)
 			{
 				RETURN_FALSE;
 			}
-
-			if(zsitelen > 32)
-				zsite[32] = '\0';
 
 			if(zsortfieldlen > 0)
 			{
@@ -152,6 +146,7 @@ ZEND_FUNCTION(phrasea_query2)
 				zsortfield = NULL;
 
 			// prepare a sql to filter business fields
+			// SECURITY : no need to escape because zbusiness are type long
 			std::stringstream sqlbusiness_strm;
 			sqlbusiness_strm << "OR FIND_IN_SET(record.coll_id, '";
 			bool first = true;
@@ -162,7 +157,6 @@ ZEND_FUNCTION(phrasea_query2)
 			{
 				if(zend_hash_index_find(HASH_OF(zbusiness), i, (void **) &tmp1) == SUCCESS)
 				{
-
 					if(Z_TYPE_PP(tmp1) == IS_LONG)
 					{
 						if(!first)
@@ -171,7 +165,6 @@ ZEND_FUNCTION(phrasea_query2)
 						first = false;
 						n++;
 					}
-
 				}
 				else
 					break;
@@ -233,6 +226,7 @@ ZEND_FUNCTION(phrasea_query2)
 
 			// get the adresse of the distant database
 			std::stringstream sql;
+			// SECURITY : sbasid is type long, no risk of injection
 			sql << "SELECT sbas_id, host, port, sqlengine, dbname, user, pwd FROM sbas WHERE sbas_id=" << sbasid;
 add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str())), TRUE);
 			if(res.query((char *) (sql.str().c_str())))
@@ -250,15 +244,24 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
 						CHRONO time_tmpmask;
 						startChrono(time_tmpmask);
 
+						if(zsitelen > 256)
+							zsitelen = 256;
+
+						char zsite_esc[513];
+						zsite_esc[conn->escape_string(zsite, zsitelen, zsite_esc)] = '\0';
+
 						std::stringstream sqlcoll;
+						// SECURITY : userid is type long
 						sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` (KEY(coll_id)) ENGINE=MEMORY SELECT coll_id, mask_xor, mask_and FROM collusr WHERE site='"
-								<< zsite << "' AND usr_id=" << userid << " AND coll_id";
+								<< zsite_esc << "' AND usr_id=" << userid << " AND coll_id";
 						if(t_collid.size() == 1)
 						{
+							// SECURITY : t_collid[i] is type long
 							sqlcoll << '=' << t_collid.begin()->first;
 						}
 						else
 						{
+							// SECURITY : t_collid[i] is type long
 							sqlcoll << " IN (-1"; // begin with a fake number (-1) allows to insert a comma each time (avoid a test)
 							std::map<long, long>::iterator it;
 							for(it = t_collid.begin(); it != t_collid.end(); it++)
@@ -302,8 +305,22 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 						CNODE *query;
 						query = qtree2tree(&zqarray, 0);
 
-						char **pzsortfield = &zsortfield; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
-
+						char **pzsortfield; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
+						// SECURITY : escape zsortfield
+						if(zsortfield != NULL)
+						{
+							if(zsortfieldlen > 32)
+								zsortfieldlen = 32;
+							char zsortfield_esc[65];
+							zsortfield_esc[conn->escape_string(zsortfield, zsortfieldlen, zsortfield_esc)] = '\0';
+					
+							char *psortfield_esc = zsortfield_esc;
+							pzsortfield = &psortfield_esc; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
+						}
+						else
+						{
+							pzsortfield = &zsortfield; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
+						}
 
 						// here we query phrasea !
 // pthread_mutex_t sqlmutex;

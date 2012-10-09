@@ -17,68 +17,74 @@ void freetree(CNODE *n);
 // true global ok here
 static const char *math2sql[] = {(char *) "=", (char *) "<>", (char *) ">", (char *) "<", (char *) ">=", (char *) "<="};
 
-char *kwclause(KEYWORD *k)
+
+char *kwclause(SQLCONN *conn, KEYWORD *k)
 {
+	char *ret = NULL;
+
 	KEYWORD *k0 = k;
-	char *p;
-	int l = 0;
-	char *s = NULL; // , c1, c2;
-	bool hasmeta;
-	int i;
-
-	// at i=0, calculate the needed size ; then write at i=1
-	for(i = 0; i < 2; i++)
+	int nkeywords = 0;
+	int ltot = 0;
+	for(k = k0; k; k = k->nextkeyword)
 	{
-		l = 0;
-		for(k = k0; k; k = k->nextkeyword)
+		int l = strlen(k->kword);
+		k->l_esc = conn->escape_string(k->kword, l, NULL);	// needed place to escape
+		if( (k->kword_esc = (char*)EMALLOC(k->l_esc)) )
 		{
-			l += s ? s[l++] = '(', 0 : 1; // "("
-			hasmeta = FALSE;
-			for(p = k->kword; !hasmeta && *p; p++)
+			k->l_esc = conn->escape_string(k->kword, l, k->kword_esc);	// escape
+			for(char *p = k->kword_esc; *p; p++)
 			{
-				if(*p == '*' || *p == '?')
-					hasmeta = TRUE;
-			}
-			if(hasmeta)
-			{
-				l += s ? sprintf(s + l, "keyword LIKE '") : 14; // "keyword LIKE '"
-			}
-			else
-			{
-				l += s ? sprintf(s + l, "keyword='") : 9; // "keyword='";
-			}
-
-			for(p = k->kword; *p; p++)
-			{
-				switch(*p)
+				if(*p == '*')
 				{
-					case '\'':
-						l += s ? s[l++] = '\\', s[l++] = '\'', 0 : 2; // "\'"
-						break;
-					case '*':
-						l += s ? s[l++] = '%', 0 : 1; // "%"
-						break;
-					case '?':
-						l += s ? s[l++] = '_', 0 : 1; // "_"
-						break;
-					default:
-						l += s ? s[l++] = *p, 0 : 1; // "c"
-						break;
+					*p = '%';
+					k->hasmeta = TRUE;
+				}
+				else if(*p == '?')
+				{
+					*p = '_';
+					k->hasmeta = TRUE;
 				}
 			}
-			l += s ? s[l++] = '\'', s[l++] = ')', 0 : 2; // "')"
+			ltot += k->hasmeta ? (14 + k->l_esc + 1) : (9 + k->l_esc + 1);
 			if(k->nextkeyword)
-				l += s ? sprintf(s + l, " OR ") : 4; // " OR "
-		}
-		l += s ? s[l++] = '\0', 0 : 1; // \0 final
-		if(!s && l > 0)
-		{
-			if(!(s = (char *) (EMALLOC(l))))
-				break;
+				ltot += 4;	// " OR "
 		}
 	}
-	return (s);
+
+	if( (ret = (char *)EMALLOC(ltot + 1)) )
+	{
+		char *p = ret;
+		for(k = k0; k; k = k->nextkeyword)
+		{
+			if(k->kword_esc)
+			{
+				if(k->hasmeta)
+				{
+					memcpy(p, "keyword LIKE '", 14);
+					p += 14;
+				}
+				else
+				{
+					memcpy(p, "keyword='", 9);
+					p += 9;
+				}
+				memcpy(p, k->kword_esc, k->l_esc);
+				p += k->l_esc;
+				*p++ = '\'';
+				if(k->nextkeyword)
+				{
+					memcpy(p, " OR ", 4);
+					p += 4;
+				}
+			}
+		}
+		*p = '\0';
+	}
+//	zend_printf("%s \n", ret);
+
+	return(ret);
 }
+
 
 CNODE *qtree2tree(zval **root, int depth)
 {
@@ -106,7 +112,9 @@ CNODE *qtree2tree(zval **root, int depth)
 								if(k = (KEYWORD *) (EMALLOC(sizeof (KEYWORD))))
 								{
 									k->kword = ESTRDUP(Z_STRVAL_P(*tmp1));
+									k->kword_esc = NULL;
 									k->nextkeyword = NULL;
+									k->hasmeta = FALSE;
 									if(!(n->content.multileaf.firstkeyword))
 										n->content.multileaf.firstkeyword = k;
 									if(n->content.multileaf.lastkeyword)
@@ -550,7 +558,6 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 	
 //	zend_printf("%s (%d) : depth=%d, business='%s' <br/>\n", __FILE__, __LINE__, qp->depth, qp->business);
 	
-	
 	// struct Squerytree2Parm *qp = (Squerytree2Parm *) _qp;
 	sql[0] = '\0';
 	startChrono(chrono_all);
@@ -672,7 +679,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 
 			case PHRASEA_KEYLIST: // simple word
 				plk = qp->n->content.multileaf.firstkeyword;
-				if(plk && (p = kwclause(plk)))
+				if(plk && (p = kwclause(qp->sqlconn, plk)))
 				{
 					// const char *sql_business = qp->business ? "" : "AND !idx.business";
 					if(*(qp->psortField))
@@ -739,69 +746,89 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					&& qp->n->content.boperator.r->content.multileaf.firstkeyword && qp->n->content.boperator.r->content.multileaf.firstkeyword->kword)
 				{
 					plk = qp->n->content.boperator.l->content.multileaf.firstkeyword;
-					if(plk && (p = kwclause(plk)))
+					if(plk && (p = kwclause(qp->sqlconn, plk)))
 					{
-						// const char *sql_business = qp->business ? "" : "AND !idx.business";
-						if(*(qp->psortField))
-						{
-							// ===== OK =====
-							l = sprintf(sql, "SELECT idx.record_id, record.coll_id"
-										", prop.value AS skey"
-										", hitstart, hitlen, iw"
-										// ", NULL AS sha256"
-										" FROM (((kword INNER JOIN idx USING(kword_id))"
-										" INNER JOIN %s USING(record_id))"
-										" INNER JOIN xpath USING(xpath_id))"
-										" INNER JOIN prop USING(record_id)"
-										" WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]' AND prop.name='%s'"
-										, qp->sqltrec
-										, p
-										, qp->business ? "!idx.business " : "1"
-										, qp->business ? qp->business : ""
-										, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-										, *(qp->psortField)
-										);
-						}
-						else
-						{
-							// ===== OK =====
-							l = sprintf(sql, "SELECT idx.record_id, record.coll_id"
-										", NULL AS skey"
-										", hitstart, hitlen, iw"
-										// ", NULL AS sha256"
-										" FROM ((kword INNER JOIN idx USING(kword_id))"
-										" INNER JOIN %s USING(record_id))"
-										" INNER JOIN xpath USING(xpath_id)"
-										" WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
-										, qp->sqltrec
-										, p
-										, qp->business ? "!idx.business " : "1"
-										, qp->business ? qp->business : ""
-										, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-										);
-						}
-						EFREE(p);
+						// SECURITY : escape fieldname
+						char *pfield = qp->n->content.boperator.r->content.multileaf.firstkeyword->kword;
+						int   lfield = strlen(pfield);
+						char *pfield_esc = NULL;
+						int   lfield_esc = qp->sqlconn->escape_string(pfield, lfield);
 
-						if(qp->result)
+						if( (pfield_esc = (char*)EMALLOC(lfield_esc)) )
 						{
-							if(plk->nextkeyword)
+							lfield_esc = qp->sqlconn->escape_string(pfield, lfield, pfield_esc);
+
+							// const char *sql_business = qp->business ? "" : "AND !idx.business";
+							if(*(qp->psortField))
 							{
-								MAKE_STD_ZVAL(objl);
-								array_init(objl);
-								while(plk)
-								{
-									add_next_index_string(objl, plk->kword, TRUE);
-									plk = plk->nextkeyword;
-								}
-								add_assoc_zval(qp->result, (char *) "keyword", objl);
+								// ===== OK =====
+								l = sprintf(sql, "SELECT idx.record_id, record.coll_id"
+											", prop.value AS skey"
+											", hitstart, hitlen, iw"
+											// ", NULL AS sha256"
+											" FROM (((kword INNER JOIN idx USING(kword_id))"
+											" INNER JOIN %s USING(record_id))"
+											" INNER JOIN xpath USING(xpath_id))"
+											" INNER JOIN prop USING(record_id)"
+											" WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]' AND prop.name='%s'"
+											, qp->sqltrec
+											, p
+											, qp->business ? "!idx.business " : "1"
+											, qp->business ? qp->business : ""
+											, pfield_esc
+											, *(qp->psortField)
+											);
 							}
 							else
 							{
-								add_assoc_string(qp->result, (char *) "keyword", plk->kword, TRUE);
+								// ===== OK =====
+								l = sprintf(sql, "SELECT idx.record_id, record.coll_id"
+											", NULL AS skey"
+											", hitstart, hitlen, iw"
+											// ", NULL AS sha256"
+											" FROM ((kword INNER JOIN idx USING(kword_id))"
+											" INNER JOIN %s USING(record_id))"
+											" INNER JOIN xpath USING(xpath_id)"
+											" WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
+											, qp->sqltrec
+											, p
+											, qp->business ? "!idx.business " : "1"
+											, qp->business ? qp->business : ""
+											, pfield_esc
+											);
 							}
-							add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, TRUE);
+							EFREE(pfield_esc);
+
+							if(qp->result)
+							{
+								if(plk->nextkeyword)
+								{
+									MAKE_STD_ZVAL(objl);
+									array_init(objl);
+									while(plk)
+									{
+										add_next_index_string(objl, plk->kword, TRUE);
+										plk = plk->nextkeyword;
+									}
+									add_assoc_zval(qp->result, (char *) "keyword", objl);
+								}
+								else
+								{
+									add_assoc_string(qp->result, (char *) "keyword", plk->kword, TRUE);
+								}
+								add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, TRUE);
+							}
+							qp->sqlconn->phrasea_query(sql, qp);
 						}
-						qp->sqlconn->phrasea_query(sql, qp);
+						else
+						{
+							// pfield_esc alloc error
+						}
+						EFREE(p);
+					}
+					else
+					{
+						// kwclause (p) alloc error
 					}
 				}
 				break;
@@ -826,40 +853,89 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 
 							sql[0] = '\0';
 
-							char *fname = qp->n->content.boperator.l->content.multileaf.firstkeyword->kword;
+							// SECURITY : escape fieldname...
+							char *pfield = qp->n->content.boperator.l->content.multileaf.firstkeyword->kword;
+							int   lfield = strlen(pfield);
+							char *pfield_esc = NULL;
+							int   lfield_esc = qp->sqlconn->escape_string(pfield, lfield);
+							// ...and fieldvalue
+							char *pvalue = qp->n->content.boperator.r->content.multileaf.firstkeyword->kword;
+							int   lvalue = strlen(pvalue);
+							char *pvalue_esc = NULL;
+							int   lvalue_esc = qp->sqlconn->escape_string(pvalue, lvalue);
 
-							// technical field sha256 ?
-							if(!sql[0] && strcmp(fname, "sha256") == 0)
+							if( (pfield_esc = (char*)EMALLOC(lfield_esc)) && (pvalue_esc = (char*)EMALLOC(lvalue_esc)) )
 							{
-								if(qp->n->type == PHRASEA_OP_EQUAL && strcmp(qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, "sha256") == 0)
+								lfield_esc = qp->sqlconn->escape_string(pfield, lfield, pfield_esc);
+								lvalue_esc = qp->sqlconn->escape_string(pvalue, lvalue, pvalue_esc);
+
+								// technical field sha256 ?
+								if(!sql[0] && strcmp(pfield, "sha256") == 0)
 								{
-									// special query "sha256=sha256" (tuples)
-									*(qp->psortField) = NULL; // !!!!! this special query cancels sort !!!!!
-									// ===== OK =====
-									sprintf(sql, "SELECT record_id, coll_id"
-											", NULL AS skey"
-											", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											", sha256"
-											" FROM (SELECT sha256, SUM(1) AS n FROM %s GROUP BY sha256 HAVING n>1) AS b"
-											" INNER JOIN record USING(sha256)"
-											, qp->sqltrec
-											);
+									if(qp->n->type == PHRASEA_OP_EQUAL && strcmp(pvalue, "sha256") == 0)
+									{
+										// special query "sha256=sha256" (tuples)
+										*(qp->psortField) = NULL; // !!!!! this special query cancels sort !!!!!
+										// ===== OK =====
+										sprintf(sql, "SELECT record_id, coll_id"
+												", NULL AS skey"
+												", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												", sha256"
+												" FROM (SELECT sha256, SUM(1) AS n FROM %s GROUP BY sha256 HAVING n>1) AS b"
+												" INNER JOIN record USING(sha256)"
+												, qp->sqltrec
+												);
+									}
+									else
+									{
+										// ===== OK =====
+										if(*(qp->psortField))
+										{
+											sprintf(sql, "SELECT record_id, record.coll_id"
+													", prop.value AS skey"
+													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+													// ", NULL AS sha256"
+													" FROM %s"
+													" INNER JOIN prop USING(record_id)"
+													" WHERE sha256%s'%s' AND prop.name='%s'"
+													, qp->sqltrec
+													, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+													, pvalue_esc
+													, *(qp->psortField)
+													);
+										}
+										else
+										{
+											// ===== OK =====
+											sprintf(sql, "SELECT record_id, record.coll_id"
+													// ", NULL AS skey"
+													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+													// ", NULL AS sha256"
+													" FROM %s WHERE sha256%s'%s'" // ORDER BY record_id DESC"
+													, qp->sqltrec
+													, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+													, pvalue_esc
+													);
+										}
+									}
 								}
-								else
+
+								// technical field recordid ?
+								if(!sql[0] && strcmp(pfield, "recordid") == 0)
 								{
-									// ===== OK =====
 									if(*(qp->psortField))
 									{
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										// ===== OK =====
+										sprintf(sql, "SELECT record.record_id, record.coll_id"
 												", prop.value AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s"
 												" INNER JOIN prop USING(record_id)"
-												" WHERE sha256%s'%s' AND prop.name='%s'"
+												" WHERE record.record_id%s'%s' AND prop.name='%s'"
 												, qp->sqltrec
 												, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-												, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
+												, pvalue_esc
 												, *(qp->psortField)
 												);
 									}
@@ -870,259 +946,208 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												// ", NULL AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
-												" FROM %s WHERE sha256%s'%s'" // ORDER BY record_id DESC"
+												" FROM %s WHERE record_id%s'%s'" // ORDER BY record_id DESC"
 												, qp->sqltrec
 												, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-												, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
+												, pvalue_esc
 												);
 									}
 								}
-							}
 
-							// technical field recordid ?
-							if(!sql[0] && strcmp(fname, "recordid") == 0)
-							{
-								if(*(qp->psortField))
+								// technical field recordtype ?
+								if(!sql[0] && strcmp(pfield, "recordtype") == 0)
 								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record.record_id, record.coll_id"
-											", prop.value AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM %s"
-											" INNER JOIN prop USING(record_id)"
-											" WHERE record.record_id%s%s AND prop.name='%s'"
-											, qp->sqltrec
-											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-											, *(qp->psortField)
-											);
-								}
-								else
-								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record_id, record.coll_id"
-											// ", NULL AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM %s WHERE record_id%s%s" // ORDER BY record_id DESC"
-											, qp->sqltrec
-											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-											);
-								}
-							}
-
-							// technical field recordtype ?
-							if(!sql[0] && strcmp(fname, "recordtype") == 0)
-							{
-								if(*(qp->psortField))
-								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record_id, record.coll_id"
-											", prop.value AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM %s"
-											" INNER JOIN prop USING(record_id)"
-											" WHERE record.type%s'%s' AND prop.name='%s'"
-											, qp->sqltrec
-											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-											, *(qp->psortField)
-											);
-								}
-								else
-								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record_id, record.coll_id"
-											// ", NULL AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM %s"
-											" WHERE type%s'%s'" // ORDER BY record_id DESC"
-											, qp->sqltrec
-											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-											);
-								}
-							}
-
-							// technical field thumbnail or preview or document ?
-							if(!sql[0] && (strcmp(fname, "thumbnail") == 0 || strcmp(fname, "preview") == 0 || strcmp(fname, "document") == 0))
-							{
-								char w[] = "NOT(ISNULL(subdef.record_id))";
-								if(qp->n->content.boperator.r->content.multileaf.firstkeyword->kword[0] == '0')
-									strcpy(w, "ISNULL(subdef.record_id)");
-								if(*(qp->psortField))
-								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record_id, record.coll_id"
-											", prop.value AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM (%s LEFT JOIN subdef USING(record_id))"
-											" INNER JOIN prop USING(record_id)"
-											" WHERE %s AND subdef.name='%s' AND prop.name='%s'"
-											, qp->sqltrec
-											, w
-											, fname
-											, *(qp->psortField)
-											);
-								}
-								else
-								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record_id, record.coll_id"
-											// ", NULL AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM %s"
-											" LEFT JOIN subdef USING(record_id)"
-											" WHERE %s AND subdef.name='%s'" // ORDER BY record_id DESC"
-											, qp->sqltrec
-											, w
-											, fname
-											);
-								}
-							}
-
-							// champ technique recordstatus ?
-							if(!sql[0] && strcmp(fname, "recordstatus") == 0)
-							{
-#ifdef __no_WIN__
-								char buff_and[64];
-								char *val;
-								xINT64 mask_and;
-								//	unsigned long long mask_xor;
-								for(val = qp->n->content.boperator.r->content.multileaf.firstkeyword->kword; *val; val++)
-								{
-									switch(*val)
+									if(*(qp->psortField))
 									{
-										case '0':
-											mask_and = (mask_and << 1) && 0xFFFFFFFFFFFFFFFF;
-											//				mask_xor = (mask_xor<<1) && 0x0000000000000000;
-											break;
-										case '1':
-											mask_and = (mask_and << 1) && 0xFFFFFFFFFFFFFFFF;
-											//				mask_xor = (mask_xor<<1) && 0x0000000000000001;
-											break;
-										default:
-											mask_and = (mask_and << 1) && 0xFFFFFFFFFFFFFFFE;
-											//				mask_xor = (mask_xor<<1) && 0x0000000000000000;
-											break;
+										// ===== OK =====
+										sprintf(sql, "SELECT record_id, record.coll_id"
+												", prop.value AS skey"
+												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS sha256"
+												" FROM %s"
+												" INNER JOIN prop USING(record_id)"
+												" WHERE record.type%s'%s' AND prop.name='%s'"
+												, qp->sqltrec
+												, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+												, pvalue_esc
+												, *(qp->psortField)
+												);
+									}
+									else
+									{
+										// ===== OK =====
+										sprintf(sql, "SELECT record_id, record.coll_id"
+												// ", NULL AS skey"
+												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS sha256"
+												" FROM %s"
+												" WHERE type%s'%s'" // ORDER BY record_id DESC"
+												, qp->sqltrec
+												, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+												, pvalue_esc
+												);
 									}
 								}
-#else
-								// pas de support direct 64 bits
-								char buff_and[] = "0x????????????????";
-								char buff_xor[] = "0x????????????????";
-								int l, q, b;
-								unsigned char h_and, h_xor;
-								l = strlen(qp->n->content.boperator.r->content.multileaf.firstkeyword->kword) - 1;
-								for(q = 15; q >= 0; q--)
+
+								// technical field thumbnail or preview or document ?
+								if(!sql[0] && (strcmp(pfield, "thumbnail") == 0 || strcmp(pfield, "preview") == 0 || strcmp(pfield, "document") == 0))
 								{
-									h_and = h_xor = 0;
-									for(b = 0; b < 4; b++)
+									char w[] = "NOT(ISNULL(subdef.record_id))";
+									if(qp->n->content.boperator.r->content.multileaf.firstkeyword->kword[0] == '0')
+										strcpy(w, "ISNULL(subdef.record_id)");
+									if(*(qp->psortField))
 									{
-										if(l >= 0)
+										// ===== OK =====
+										sprintf(sql, "SELECT record_id, record.coll_id"
+												", prop.value AS skey"
+												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS sha256"
+												" FROM (%s LEFT JOIN subdef USING(record_id))"
+												" INNER JOIN prop USING(record_id)"
+												" WHERE %s AND subdef.name='%s' AND prop.name='%s'"
+												, qp->sqltrec
+												, w
+												, pfield
+												, *(qp->psortField)
+												);
+									}
+									else
+									{
+										// ===== OK =====
+										sprintf(sql, "SELECT record_id, record.coll_id"
+												// ", NULL AS skey"
+												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS sha256"
+												" FROM %s"
+												" LEFT JOIN subdef USING(record_id)"
+												" WHERE %s AND subdef.name='%s'" // ORDER BY record_id DESC"
+												, qp->sqltrec
+												, w
+												, pfield
+												);
+									}
+								}
+
+								// champ technique recordstatus ?
+								if(!sql[0] && strcmp(pfield, "recordstatus") == 0)
+								{
+									// pas de support direct 64 bits
+									char buff_and[] = "0x????????????????";
+									char buff_xor[] = "0x????????????????";
+									int l, q, b;
+									unsigned char h_and, h_xor;
+									l = strlen(pvalue) - 1;
+									for(q = 15; q >= 0; q--)
+									{
+										h_and = h_xor = 0;
+										for(b = 0; b < 4; b++)
 										{
-											switch(qp->n->content.boperator.r->content.multileaf.firstkeyword->kword[l])
+											if(l >= 0)
 											{
-												case '0':
-													h_and |= (1 << b);
-													break;
-												case '1':
-													h_and |= (1 << b);
-													h_xor |= (1 << b);
-													break;
+												switch(pvalue[l])
+												{
+													case '0':
+														h_and |= (1 << b);
+														break;
+													case '1':
+														h_and |= (1 << b);
+														h_xor |= (1 << b);
+														break;
+												}
+												l--;
 											}
-											l--;
 										}
+										buff_and[2 + q] = (h_and > 9) ? ('a' + (h_and - 10)) : ('0' + h_and);
+										buff_xor[2 + q] = (h_xor > 9) ? ('a' + (h_xor - 10)) : ('0' + h_xor);
 									}
-									buff_and[2 + q] = (h_and > 9) ? ('a' + (h_and - 10)) : ('0' + h_and);
-									buff_xor[2 + q] = (h_xor > 9) ? ('a' + (h_xor - 10)) : ('0' + h_xor);
+									if(*(qp->psortField))
+									{
+										// ===== OK =====
+										sprintf(sql, "SELECT record_id, record.coll_id"
+												", prop.value AS skey"
+												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS sha256"
+												" FROM %s INNER JOIN prop USING(record_id)"
+												" WHERE ((status ^ %s) & %s = 0) AND prop.name='%s'"
+												, qp->sqltrec
+												, buff_xor
+												, buff_and
+												, *(qp->psortField)
+												);
+									}
+									else
+									{
+										// ===== OK =====
+										sprintf(sql, "SELECT record_id, record.coll_id"
+												// ", NULL AS skey"
+												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS sha256"
+												" FROM %s"
+												" WHERE ((status ^ %s) & %s = 0)"
+												, qp->sqltrec
+												, buff_xor
+												, buff_and
+												);
+									}
 								}
-#endif
-								if(*(qp->psortField))
-								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record_id, record.coll_id"
-											", prop.value AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM %s INNER JOIN prop USING(record_id)"
-											" WHERE ((status ^ %s) & %s = 0) AND prop.name='%s'"
-											, qp->sqltrec
-											, buff_xor
-											, buff_and
-											, *(qp->psortField)
-											);
-								}
-								else
-								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record_id, record.coll_id"
-											// ", NULL AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM %s"
-											" WHERE ((status ^ %s) & %s = 0)"
-											, qp->sqltrec
-											, buff_xor
-											, buff_and
-											);
-								}
-							}
 
-							if(!sql[0]) // it was not a technical field = it was a field of the bas (structure)
+								if(!sql[0]) // it was not a technical field = it was a field of the bas (structure)
+								{
+									// const char *sql_business = qp->business ? "" : "AND !prop.business";
+
+									for(char *p = pfield_esc; *p; p++)
+									{
+										if(*p >= 'a' && *p <= 'z')
+											*p += ('A' - 'a');
+									}
+									if(*(qp->psortField))
+									{
+										// ===== OK =====
+										sprintf(sql, "SELECT record.record_id, record.coll_id"
+												", propsort.value AS skey"
+												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS sha256"
+												" FROM (prop INNER JOIN %s USING(record_id))"
+												" INNER JOIN prop AS propsort USING(record_id)"
+												" WHERE prop.name='%s' AND prop.value%s'%s' AND (%s%s) AND propsort.name='%s'"
+												, qp->sqltrec
+												, pfield_esc
+												, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+												, pvalue_esc
+												, qp->business ? "!prop.business " : "1"
+												, qp->business ? qp->business : ""
+												, *(qp->psortField)
+												);
+									}
+									else
+									{
+										// ===== OK =====
+										sprintf(sql, "SELECT record.record_id, record.coll_id"
+												// ", NULL AS skey"
+												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS sha256"
+												" FROM prop INNER JOIN %s USING(record_id)"
+												" WHERE name='%s' AND value%s'%s' AND (%s%s)"
+												, qp->sqltrec
+												, pfield
+												, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+												, pvalue
+												, qp->business ? "!prop.business " : "1"
+												, qp->business ? qp->business : ""
+												);
+									}
+								}
+
+								qp->sqlconn->phrasea_query(sql, qp);
+							}
+							else
 							{
-								// const char *sql_business = qp->business ? "" : "AND !prop.business";
-
-								for(char *p = fname; *p; p++)
-								{
-									if(*p >= 'a' && *p <= 'z')
-										*p += ('A' - 'a');
-								}
-								if(*(qp->psortField))
-								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record.record_id, record.coll_id"
-											", propsort.value AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM (prop INNER JOIN %s USING(record_id))"
-											" INNER JOIN prop AS propsort USING(record_id)"
-											" WHERE prop.name='%s' AND prop.value%s'%s' AND (%s%s) AND propsort.name='%s'"
-											, qp->sqltrec
-											, fname
-											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-											, qp->business ? "!prop.business " : "1"
-											, qp->business ? qp->business : ""
-											, *(qp->psortField)
-											);
-								}
-								else
-								{
-									// ===== OK =====
-									sprintf(sql, "SELECT record.record_id, record.coll_id"
-											// ", NULL AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM prop INNER JOIN %s USING(record_id)"
-											" WHERE name='%s' AND value%s'%s' AND (%s%s)"
-											, qp->sqltrec
-											, fname
-											, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-											, qp->n->content.boperator.r->content.multileaf.firstkeyword->kword
-											, qp->business ? "!prop.business " : "1"
-											, qp->business ? qp->business : ""
-											);
-								}
+								// pfield or pvalue alloc error
 							}
-
-							qp->sqlconn->phrasea_query(sql, qp);
+							if(pfield_esc)
+								EFREE(pfield_esc);
+							if(pvalue_esc)
+								EFREE(pvalue_esc);
 						}
 					}
 				}
@@ -1135,20 +1160,29 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					{
 						if(qp->n->content.boperator.l->content.multileaf.firstkeyword->kword && qp->n->content.boperator.r->content.multileaf.firstkeyword->kword)
 						{
-							char *fname = qp->n->content.boperator.l->content.multileaf.firstkeyword->kword;
+							// SECURITY : escape fieldname
+							char *pfield = qp->n->content.boperator.l->content.multileaf.firstkeyword->kword;
+							int  lfield = strlen(pfield);
+							int lfield_esc = qp->sqlconn->escape_string(pfield, lfield);
+							char *pfield_esc = (char*) EMALLOC(lfield_esc);
 
-							char *fvalue1 = NULL; // for sql : " thit.value LIKE 'xxx' OR thit.value LINK 'yyy' "
-							int l1 = 1; // "\0" final
+							if(pfield_esc)
+							{
+								lfield_esc = pfield_esc[qp->sqlconn->escape_string(pfield, lfield, pfield_esc)] = '\0';
+							}
+							char *fvalue1 = NULL; // for sql : " thit.value LIKE 'xxx' OR thit.value LIKE 'yyy' "
+							int l1 = 1; // '\0' final
 							char *fvalue2 = NULL; // for ret : " xxx | yyy "
-							int l2 = 1; // "\0" final
+							int l2 = 1; // '\0' final
 
 							KEYWORD *k;
 							for(k = qp->n->content.boperator.r->content.multileaf.firstkeyword; k; k = k->nextkeyword)
 							{
 								l = strlen(k->kword);
-
-								l1 += 17 + l + 1; // "thit.value LIKE 'xxx'"
 								l2 += l; // xxx
+								k->l_esc = qp->sqlconn->escape_string(k->kword, strlen(k->kword));	// needed
+
+								l1 += 17 + k->l_esc + 1; // "thit.value LIKE 'xxx'"
 								if(k->nextkeyword)
 								{
 									l1 += 4; // " OR "
@@ -1157,49 +1191,45 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 							}
 							fvalue1 = (char *) EMALLOC(l1);
 							fvalue2 = (char *) EMALLOC(l2);
-							l1 = l2 = 0;
-							int l;
-							if(fvalue1)
+							if(fvalue1 && fvalue2 && pfield_esc)
 							{
+								int l;
 								// const char *sql_business = qp->business ? "" : "AND !thit.business";
-
+								char *p1 = fvalue1;
+								char *p2 = fvalue2;
 								for(k = qp->n->content.boperator.r->content.multileaf.firstkeyword; k; k = k->nextkeyword)
 								{
 									l = strlen(k->kword);
 
-									memcpy(fvalue1 + l1, "thit.value LIKE '", 17);
-									l1 += 17;
-									memcpy(fvalue1 + l1, k->kword, l);
-									l1 += l;
-									fvalue1[l1++] = '\'';
+									memcpy(p1, "thit.value LIKE '", 17);
+									p1 += 17;
+									p1 += qp->sqlconn->escape_string(k->kword, l, p1);
+									*p1++ = '\'';
 									if(k->nextkeyword)
 									{
-										memcpy(fvalue1 + l1, " OR ", 4);
-										l1 += 4;
+										memcpy(p1, " OR ", 4);
+										p1 += 4;
 									}
 
-									if(fvalue2)
+									memcpy(p2, k->kword, l);
+									p2 += l;
+									if(k->nextkeyword)
 									{
-										memcpy(fvalue2 + l2, k->kword, l);
-										l2 += l;
-										if(k->nextkeyword)
-										{
-											memcpy(fvalue2 + l2, " | ", 3);
-											l2 += 3;
-										}
+										memcpy(p2, " | ", 3);
+										p2 += 3;
 									}
 								}
-								fvalue1[l1++] = '\0';
-								fvalue2[l2++] = '\0';
+								*p1 = '\0';
+								*p2 = '\0';
 
 								if(qp->result)
 								{
-									add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.l->content.multileaf.firstkeyword->kword, TRUE);
+									add_assoc_string(qp->result, (char *) "field", pfield, TRUE);
 									if(fvalue2)
 										add_assoc_string(qp->result, (char *) "value", fvalue2, TRUE);
 								}
 
-								if(fname[0] == '*' && fname[1] == '\0')
+								if(pfield[0] == '*' && pfield[1] == '\0')
 								{
 									// fieldname is '*' : avoid test on name
 									if(*(qp->psortField))
@@ -1255,7 +1285,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												, fvalue1
 												, qp->business ? "!thit.business " : "1"
 												, qp->business ? qp->business : ""
-												, fname
+												, pfield_esc
 												, *(qp->psortField)
 												);
 									}
@@ -1273,18 +1303,23 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												, fvalue1
 												, qp->business ? "!thit.business " : "1"
 												, qp->business ? qp->business : ""
-												, fname
+												, pfield_esc
 												);
 									}
 								}
 
-								EFREE(fvalue1);
-
 								qp->sqlconn->phrasea_query(sql, qp);
-//								phrasea_query(sql, qp);
 							}
+							else
+							{
+								// fvalue1 or fvalue2 alloc erroe
+							}
+							if(fvalue1)
+								EFREE(fvalue1);
 							if(fvalue2)
 								EFREE(fvalue2);
+							if(pfield_esc)
+								EFREE(pfield_esc);
 						}
 					}
 				}
@@ -1345,6 +1380,25 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
+						HANDLE  hThreadArray[2];
+						unsigned dwThreadIdArray[2];
+						hThreadArray[0] = (HANDLE)_beginthreadex( 
+							NULL,                   // default security attributes
+							0,                      // use default stack size  
+							querytree2,			    // thread function name
+							(void*)&qpl,             // argument to thread function 
+							0,                      // use default creation flags 
+							&dwThreadIdArray[0]);   // returns the thread identifier 
+						hThreadArray[1] = (HANDLE)_beginthreadex( 
+							NULL,                   // default security attributes
+							0,                      // use default stack size  
+							querytree2,			    // thread function name
+							(void*)&qpr,             // argument to thread function 
+							0,                      // use default creation flags 
+							&dwThreadIdArray[1]);   // returns the thread identifier 
+						WaitForMultipleObjects(2, hThreadArray, TRUE, INFINITE);
+						CloseHandle(hThreadArray[0]);
+						CloseHandle(hThreadArray[1]);
 #else
 						THREAD_START(threadl, querytree2, &qpl);
 						THREAD_START(threadr, querytree2, &qpr);
@@ -1386,30 +1440,6 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
-/*
-						struct Squerytree2Parm sqpl =
-						{
-							qp->n->content.boperator.l,
-							qp->depth + 1,
-							qp->sqlconn,
-							objl,
-							qp->sqltrec,
-							qp->psortField,
-							qp->sortMethod,
-							qp->sqlmutex
-						};
-						struct Squerytree2Parm sqpr =
-						{
-							qp->n->content.boperator.r,
-							qp->depth + 1,
-							qp->sqlconn,
-							objr,
-							qp->sqltrec,
-							qp->psortField,
-							qp->sortMethod,
-							qp->sqlmutex
-						};
-*/
 						HANDLE  hThreadArray[2];
 						unsigned dwThreadIdArray[2];
 						hThreadArray[0] = (HANDLE)_beginthreadex( 
@@ -1468,6 +1498,25 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
+						HANDLE  hThreadArray[2];
+						unsigned dwThreadIdArray[2];
+						hThreadArray[0] = (HANDLE)_beginthreadex( 
+							NULL,                   // default security attributes
+							0,                      // use default stack size  
+							querytree2,			    // thread function name
+							(void*)&qpl,             // argument to thread function 
+							0,                      // use default creation flags 
+							&dwThreadIdArray[0]);   // returns the thread identifier 
+						hThreadArray[1] = (HANDLE)_beginthreadex( 
+							NULL,                   // default security attributes
+							0,                      // use default stack size  
+							querytree2,			    // thread function name
+							(void*)&qpr,             // argument to thread function 
+							0,                      // use default creation flags 
+							&dwThreadIdArray[1]);   // returns the thread identifier 
+						WaitForMultipleObjects(2, hThreadArray, TRUE, INFINITE);
+						CloseHandle(hThreadArray[0]);
+						CloseHandle(hThreadArray[1]);
 #else
 						THREAD_START(threadl, querytree2, &qpl);
 						THREAD_START(threadr, querytree2, &qpr);
@@ -1538,19 +1587,14 @@ void freetree(CNODE *n)
 				{
 					if(n->content.multileaf.firstkeyword->kword)
 						EFREE(n->content.multileaf.firstkeyword->kword);
+					if(n->content.multileaf.firstkeyword->kword_esc)
+						EFREE(n->content.multileaf.firstkeyword->kword_esc);
 					k = n->content.multileaf.firstkeyword->nextkeyword;
 					EFREE(n->content.multileaf.firstkeyword);
 					n->content.multileaf.firstkeyword = k;
 				}
 				n->content.multileaf.lastkeyword = NULL;
 				break;
-				//			case PHRASEA_KEYWORD:
-				//				if(n->content.leaf.kword)
-				//				{
-				//					EFREE(n->content.leaf.kword);
-				//					n->content.leaf.kword = NULL;
-				//				}
-				//				break;
 			case PHRASEA_OP_EQUAL:
 			case PHRASEA_OP_NOTEQU:
 			case PHRASEA_OP_GT:

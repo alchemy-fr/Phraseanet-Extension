@@ -127,7 +127,7 @@ int SQLCONN::escape_string(char *str, int len, char *outbuff)
 		if(outbuff == NULL)
 			return ((2 * len) + 1); // no buffer allocated : simply return the needed size
 		ret = mysql_real_escape_string(&(this->mysql_connx), outbuff, str, len);
-
+		outbuff[ret] = '\0';
 	//	this->close();
 	}
 	return(ret);

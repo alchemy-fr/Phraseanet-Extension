@@ -304,7 +304,10 @@ class PCANSWERCOMP_SHA:PCANSWERCOMP
 typedef struct keyword
 {
 	char *kword;
+	char *kword_esc;
+	int l_esc;
 	struct keyword *nextkeyword;
+	bool hasmeta;
 }
 KEYWORD;
 
@@ -339,11 +342,6 @@ public:
 		{
 			int v;
 		} numparm;
-
-		struct
-		{
-			char *kword;
-		} leaf;
 
 		struct
 		{
