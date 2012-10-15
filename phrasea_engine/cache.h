@@ -6,7 +6,7 @@
 class CACHE_COLL
 {
 public:
-	CACHE_COLL(long coll_id, long base_id, char *name, char *prefs); //, bool registered);
+	CACHE_COLL(long coll_id, long base_id, const char *name, const char *prefs); //, bool registered);
 	~CACHE_COLL();
 	friend class CACHE_BASE;
 	friend class CACHE_SESSION;
@@ -29,9 +29,9 @@ private:
 class CACHE_BASE
 {
 public:
-	CACHE_BASE(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname); // , bool online);
+	CACHE_BASE(long base_id, const char *host, long port, const char *user, const char *passwd, const char *dbname, const char *xmlstruct, long sbas_id, const char *viewname); // , bool online);
 	~CACHE_BASE();
-	CACHE_COLL *addcoll(long coll_id, long base_id, char *name, char *prefs); //, bool registered);
+	CACHE_COLL *addcoll(long coll_id, long base_id, const char *name, const char *prefs); //, bool registered);
 	friend class CACHE_SESSION;
 private:
 //	bool online;
@@ -70,11 +70,11 @@ public:
 	bool save();
 	bool restore(long session_id);
 	~CACHE_SESSION();
-	CACHE_BASE *addbase(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname); //, bool online);
+	CACHE_BASE *addbase(long base_id, const char *host, long port, const char *user, const char *passwd, const char *dbname, const char *xmlstruct, long sbas_id, const char *viewname); //, bool online);
 	void dump();
 	void serialize_php(zval *result); // , bool everything);
 	int serialize_bin(long *binbuff);
-	void unserialize_bin(char *bin);
+	void unserialize_bin(const char *bin);
 	long get_session_id();
 	long get_local_base_id(long local_base_id, long distant_coll_id);
 	long get_local_base_id2(long local_base_id, long distant_coll_id);

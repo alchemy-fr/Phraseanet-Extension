@@ -4136,11 +4136,11 @@ $as_echo "$ext_output" >&6; }
 
 if test "$PHP_PHRASEA2" != "no"; then
 
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking ================================================= phrasea extension version number" >&5
-$as_echo_n "checking ================================================= phrasea extension version number... " >&6; }
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking ====== phrasea extension version number" >&5
+$as_echo_n "checking ====== phrasea extension version number... " >&6; }
     PHRASEAVERSION=
-    if test -r ./_VERSION.h; then
-        PHRASEAVERSION=`cat ./_VERSION.h | egrep -e "#define[[:blank:]]*PHDOTVERSION" | tr -d '\r' | sed  -e "s/#define[[:blank:]]*PHDOTVERSION[[:blank:]]*\(.*\)[[:space:]]*$/\1/"`
+    if test -r php_phrasea2/_VERSION.h; then
+        PHRASEAVERSION=`cat php_phrasea2/_VERSION.h | egrep -e "#define[[:blank:]]*PHDOTVERSION" | tr -d '\r' | sed  -e "s/#define[[:blank:]]*PHDOTVERSION[[:blank:]]*\(.*\)[[:space:]]*$/\1/"`
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PHRASEAVERSION" >&5
 $as_echo "$PHRASEAVERSION" >&6; }
     else
@@ -4683,7 +4683,7 @@ fi
 
 
   old_IFS=$IFS
-  for ac_src in phrasea2.cpp \
+  for ac_src in php_phrasea2/phrasea2.cpp \
                         phrasea_engine/cache.cpp\
                         phrasea_engine/fetchresults.cpp \
                         phrasea_engine/phrasea_clock_t.cpp \
@@ -4742,7 +4742,7 @@ EOF
 
 
   old_IFS=$IFS
-  for ac_src in phrasea2.cpp \
+  for ac_src in php_phrasea2/phrasea2.cpp \
                         phrasea_engine/cache.cpp\
                         phrasea_engine/fetchresults.cpp \
                         phrasea_engine/phrasea_clock_t.cpp \
@@ -4882,7 +4882,7 @@ _ACEOF
 
 
   old_IFS=$IFS
-  for ac_src in phrasea2.cpp \
+  for ac_src in php_phrasea2/phrasea2.cpp \
                         phrasea_engine/cache.cpp\
                         phrasea_engine/fetchresults.cpp \
                         phrasea_engine/phrasea_clock_t.cpp \
@@ -4938,7 +4938,7 @@ EOF
 
 
   old_IFS=$IFS
-  for ac_src in phrasea2.cpp \
+  for ac_src in php_phrasea2/phrasea2.cpp \
                         phrasea_engine/cache.cpp\
                         phrasea_engine/fetchresults.cpp \
                         phrasea_engine/phrasea_clock_t.cpp \
@@ -8447,6 +8447,10 @@ _lt_linker_boilerplate=`cat conftest.err`
 $RM -r conftest*
 
 
+## CAVEAT EMPTOR:
+## There is no encapsulation within the following macros, do not change
+## the running order or otherwise move them around unless you know exactly
+## what you are doing...
 if test -n "$compiler"; then
 
 lt_prog_compiler_no_builtin_flag=
@@ -8472,11 +8476,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8475: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8479: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:8479: \$? = $ac_status" >&5
+   echo "$as_me:8483: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -8811,11 +8815,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8814: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8818: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:8818: \$? = $ac_status" >&5
+   echo "$as_me:8822: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -8916,11 +8920,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8919: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8923: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:8923: \$? = $ac_status" >&5
+   echo "$as_me:8927: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8971,11 +8975,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8974: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8978: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:8978: \$? = $ac_status" >&5
+   echo "$as_me:8982: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -11355,7 +11359,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11358 "configure"
+#line 11362 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11451,7 +11455,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11454 "configure"
+#line 11458 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -13407,11 +13411,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13410: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13414: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:13414: \$? = $ac_status" >&5
+   echo "$as_me:13418: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -13506,11 +13510,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13509: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13513: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13513: \$? = $ac_status" >&5
+   echo "$as_me:13517: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -13558,11 +13562,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:13561: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:13565: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:13565: \$? = $ac_status" >&5
+   echo "$as_me:13569: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized

@@ -15,7 +15,7 @@
 #define QUOTE(x) _QUOTE(x)
 #define _QUOTE(a) #a
 
-SQLCONN::SQLCONN(char *host, unsigned int port, char *user, char *passwd, char *dbname)
+SQLCONN::SQLCONN(const char *host, unsigned int port, const char *user, const char *passwd, const char *dbname)
 {
 // ftrace("%s \n", dbname);
 	this->ukey = NULL;
@@ -116,7 +116,7 @@ void *SQLCONN::get_native_conn()
 		return(NULL);
 }
 
-int SQLCONN::escape_string(char *str, int len, char *outbuff)
+int SQLCONN::escape_string(const char *str, int len, char *outbuff)
 {
 // ftrace("%s [%d] %s(%s) \n", __FILE__, __LINE__, __FUNCTION__, this->dbname);
 	int ret = -1;
@@ -250,9 +250,9 @@ SQLROW::~SQLROW()
 {
 }
 
-char *SQLROW::field(int n)
+const char *SQLROW::field(int n, const char *replaceNULL)
 {
-	return (this->row[n]);
+	return (this->row[n] == NULL ? replaceNULL : this->row[n]);
 }
 
 #define SQLFIELD_RID 0
@@ -267,7 +267,7 @@ char *SQLROW::field(int n)
 // send a 'leaf' query to a databox
 // results are returned into the node (qp->n)
 
-void SQLCONN::phrasea_query(char *sql, Cquerytree2Parm *qp)
+void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp)
 {
 	qp->sqlconn->connect();
 	MYSQL *xconn = (MYSQL *)(qp->sqlconn->get_native_conn());

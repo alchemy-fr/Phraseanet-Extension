@@ -1,6 +1,6 @@
 #include "base_header.h"
 
-#include "../php_phrasea2.h"
+#include "../php_phrasea2/php_phrasea2.h"
 
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -12,7 +12,7 @@
 #define LSTRPAD(l) (((l)+PAD) & ~(PAD-1))
 
 
-CACHE_COLL::CACHE_COLL(long coll_id, long base_id, char *name, char *prefs) //, bool registered)
+CACHE_COLL::CACHE_COLL(long coll_id, long base_id, const char *name, const char *prefs) //, bool registered)
 {
   int lstr, lram;
 	this->coll_id = coll_id;
@@ -147,7 +147,7 @@ CACHE_COLL::~CACHE_COLL()
 
 
 
-CACHE_BASE::CACHE_BASE(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname) //, bool online)
+CACHE_BASE::CACHE_BASE(long base_id, const char *host, long port, const char *user, const char *passwd, const char *dbname, const char *xmlstruct, long sbas_id, const char *viewname) //, bool online)
 {
 //	this->online = online;
  	this->base_id = base_id;
@@ -292,7 +292,7 @@ long CACHE_BASE::get_binsize()
 	return(binsize);
 }
 
-CACHE_COLL *CACHE_BASE::addcoll(long coll_id, long base_id, char *name, char *prefs) //, bool registered)
+CACHE_COLL *CACHE_BASE::addcoll(long coll_id, long base_id, const char *name, const char *prefs) //, bool registered)
 {
   CACHE_COLL *cc, *ncc = new CACHE_COLL(coll_id, base_id, name, prefs); // , registered);
 	for(cc=this->firstcoll; cc && cc->nextcoll; cc = cc->nextcoll)
@@ -464,12 +464,12 @@ bool CACHE_SESSION::restore(long session_id)
 	if(res.query(sql))
 	{
 		SQLROW *row = res.fetch_row();
-		if(row && row->field(0))
+		if(row && row->field(0, NULL))
 		{
 			unsigned long *lengths = res.fetch_lengths();
 			if(lengths[0] > 0)
 			{
-				this->unserialize_bin(row->field(0));
+				this->unserialize_bin(row->field(0, NULL));
 				ret = true;
 			}
 		}
@@ -500,7 +500,7 @@ bool CACHE_SESSION::save()
 				binlen = this->serialize_bin((long *)binbuff);		// serialize and get the real size
 
 				memset(bind, 0, sizeof(bind));
-				
+
 				bind[0].buffer_type = MYSQL_TYPE_VAR_STRING;
 				bind[0].buffer = binbuff;
 				bind[0].buffer_length = binlen;
@@ -625,7 +625,7 @@ void CACHE_SESSION::set_registered(long local_base_id, bool registered)
 	}
 }
 */
-CACHE_BASE *CACHE_SESSION::addbase(long base_id, char *host, long port, char *user, char *passwd, char *dbname, char *xmlstruct, long sbas_id, char *viewname) //, bool online)
+CACHE_BASE *CACHE_SESSION::addbase(long base_id, const char *host, long port, const char *user, const char *passwd, const char *dbname, const char *xmlstruct, long sbas_id, const char *viewname) //, bool online)
 {
   CACHE_BASE *cb, *ncb = new CACHE_BASE(base_id, host, port, user, passwd, dbname, xmlstruct, sbas_id, viewname); //, online);
 	for(cb=this->firstbase; cb && cb->nextbase; cb = cb->nextbase)
@@ -687,7 +687,7 @@ int CACHE_SESSION::serialize_bin(long *binbuff = NULL)
 	return(l);
 }
 
-void CACHE_SESSION::unserialize_bin(char *bin)
+void CACHE_SESSION::unserialize_bin(const char *bin)
 {
 	unsigned long *p = (unsigned long *)bin;
 	this->session_id = p[0];

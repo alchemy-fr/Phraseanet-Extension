@@ -1,6 +1,6 @@
 #include "base_header.h"
 
-#include "../php_phrasea2.h"
+#include "../php_phrasea2/php_phrasea2.h"
 
 #include "phrasea_clock_t.h"
 #include "sql.h"
@@ -161,9 +161,9 @@ ZEND_FUNCTION(phrasea_fetch_results)
 											add_assoc_double(zanswer, (char *) "time_xmlFetch", stopChrono(chrono));
 
 											unsigned long *siz = res.fetch_lengths();
-											add_assoc_long(zanswer, (char *) "parent_record_id", atol(row->field(1)));
+											add_assoc_long(zanswer, (char *) "parent_record_id", atol(row->field(1, "0")));
 											memset(hex_status, '0', 17);
-											memcpy(hex_status + (16 - siz[2]), row->field(2), siz[2]);
+											memcpy(hex_status + (16 - siz[2]), row->field(2, "0"), siz[2]);
 											add_assoc_stringl(zanswer, (char *) "status", hex_status, 16, TRUE);
 
 											unsigned long xmlsize = siz[0] + 1;
@@ -176,7 +176,7 @@ ZEND_FUNCTION(phrasea_fetch_results)
 
 											if(xml = (char *) EMALLOC(xmlsize + (nspots * (markin_l + markout_l))))
 											{
-												memcpy(xml, row->field(0), xmlsize);
+												memcpy(xml, row->field(0, ""), xmlsize);
 
 												if(nspots > 0 && markin && markout)
 												{

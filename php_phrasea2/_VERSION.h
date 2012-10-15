@@ -13,7 +13,7 @@
 
 
 
-//============= xNIX ; OS/X: ==================
+//============= Linux / OS-X ==================
 //
 // the version number is defined here :
 //

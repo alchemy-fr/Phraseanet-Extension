@@ -1,11 +1,28 @@
+Install "Visual C++ 2008 Express Edition" et "Windows SDK 6.1"
+
+Create a working directory, ex. "AlchemyBinaries"
+Copy the "Phraseanet-Extension" directory into a "AlchemyBinaries"
+Create a "Win32" directory into "AlchemyBinaries"
+Create a "required" directory into "AlchemyBinaries/Win32"
+Into "AlchemyBinaries/Win32/required", download
+- "Expat 2.1.0"
+- "php-5.3.17-src"
+- "php-5.3.17-Win32-VC9-x86"
+- "php-5.4.7-src"
+- "php-5.4.7-Win32-VC9-x86"
+- "mysql-5.5.28-win32"
+- "libxml2-2.7.8.win32"
+- "iconv-1.9.2.win32"
+- "zlib-1.2.5"
+
 if you see this kind of error(s) when compiling :
-c:\php-5.3.10-src\zend\zend_config.w32.h(25) : fatal error C1083: Cannot open include file: '../main/config.w32.h': No such file or directory
+"...\php-5.3.17-src\zend\zend_config.w32.h(25) : fatal error C1083: Cannot open include file: '../main/config.w32.h': No such file or directory
 
-open a terminal, cd to the php sources (here: C:\php-5.3.10-src), then :
+open a terminal, cd to the php sources (here: "...\AlchemyBinaries\Win32\required\php-5.3.17-src"), then :
 
-C:\php-5.3.10-src>buildconf.bat
-
-C:\php-5.3.10-src>"C:\Program Files\Microsoft Visual Studio 9.0\VC\vcvarsall.bat"
+run
+...\php-5.3.17-src>buildconf.bat
+...\php-5.3.17-src>"C:\Program Files\Microsoft Visual Studio 9.0\VC\vcvarsall.bat"
 (or "C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\vcvarsall.bat" if your system is win64)
 
 then edit configure.js, comment 'bison' lines :
@@ -15,13 +32,8 @@ then edit configure.js, comment 'bison' lines :
 
 finaly :
 
-C:\php-5.3.10-src>cscript /nologo configure.js
-
-
-
-
+...\php-5.3.17-src>cscript /nologo configure.js
 
 =======================================================
 mysql : disable strict mode !
-
 =======================================================
