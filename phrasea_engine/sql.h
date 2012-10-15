@@ -10,7 +10,7 @@
 class SQLCONN
 {
 	public:
-		SQLCONN(char *host, unsigned int port, char *user, char *passwd, char *dbname);
+		SQLCONN(const char *host, unsigned int port, const char *user, const char *passwd, const char *dbname);
 		bool connect();
 		void close();
 		~SQLCONN();
@@ -18,8 +18,8 @@ class SQLCONN
 //		bool isok();
 		bool query(const char *sql, int len = -1);
 		const char *error();
-		int escape_string(char *str, int len = -1, char *outbuff = NULL);
-		void phrasea_query(char *sql, Cquerytree2Parm *qp);
+		int escape_string(const char *str, int len = -1, char *outbuff = NULL);
+		void phrasea_query(const char *sql, Cquerytree2Parm *qp);
 		my_ulonglong affected_rows();
 		// #WIN - _int64 affected_rows();
 		void *get_native_conn();
@@ -45,7 +45,7 @@ class SQLROW
 	public:
 		SQLROW();
 		~SQLROW();
-		char *field(int n);
+		const char *field(int n, const char *replaceNULL); // = NULL);
 		friend class SQLRES;
 		friend class SQLCONN;
 	private:

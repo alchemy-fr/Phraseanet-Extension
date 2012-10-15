@@ -1,3 +1,11 @@
+1.20.1.7
+fix : allow null values in sql (effect depends on location, ex. null password is '', but null record_id is 0)
+CS : change many "char *" to "const char *"
+
+1.20.1.6
+security fix
+restored build for windows
+
 1.20.1.5
 fix link under ubuntu "precise" : mysql headers/libs now found using "mysql_config" (change in config.m4)
 fix some warning (cast from string to char *)

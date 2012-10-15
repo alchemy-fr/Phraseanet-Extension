@@ -13,13 +13,13 @@
 
 
 
-//============= xNIX ; OS/X: ==================
+//============= Linux / OS-X ==================
 //
 // the version number is defined here :
 //
 
 #ifndef PHDOTVERSION
-#define PHDOTVERSION 1.20.1.6
+#define PHDOTVERSION 1.20.1.7
 #endif
 //
 //=======================================================================

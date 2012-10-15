@@ -1,7 +1,7 @@
 #ifndef PHP_PHRASEA2_H
 #define PHP_PHRASEA2_H 1
 
-#include "phrasea_engine/cache.h"	// define CACHE_SESSION
+#include "../phrasea_engine/cache.h"	// define CACHE_SESSION
 
 #ifdef ZTS
 #include "TSRM.h"

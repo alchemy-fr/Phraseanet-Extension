@@ -1,7 +1,7 @@
 #include "base_header.h"
 #include "phrasea_clock_t.h"
 
-#include "../php_phrasea2.h"
+#include "../php_phrasea2/php_phrasea2.h"
 
 #include "cquerytree2parm.h"
 
@@ -235,7 +235,7 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
 				if(row)
 				{
 					// on se connecte sur la base distante
-					SQLCONN *conn = new SQLCONN(row->field(1), atoi(row->field(2)), row->field(5), row->field(6), row->field(4));
+					SQLCONN *conn = new SQLCONN(row->field(1, "127.0.0.1"), atoi(row->field(2, "3306")), row->field(5, "root"), row->field(6, ""), row->field(4, "dbox"));
 					if(conn && conn->connect())
 					{
 						add_assoc_double(return_value, (char *) "time_connect", stopChrono(time_connect));
@@ -282,8 +282,8 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 						restmp.query("SELECT BIT_COUNT(BIT_OR(`mask_xor` | `mask_and`)) FROM `_tmpmask`");
 						if((rowtmp = restmp.fetch_row()))
 						{
-							char *f = rowtmp->field(0);
-							if(f[1] == '\0' && f[0] == '0')
+							const char *f = rowtmp->field(0, "0");
+							if(f[0] == '0' && f[1] == '\0')
 							{
 								// all masks=0; we don't need masks in queries !
 								if(multidocMode == PHRASEA_MULTIDOC_DOCONLY)
@@ -313,7 +313,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 								zsortfieldlen = 32;
 							char zsortfield_esc[65];
 							zsortfield_esc[conn->escape_string(zsortfield, zsortfieldlen, zsortfield_esc)] = '\0';
-					
+
 							char *psortfield_esc = zsortfield_esc;
 							pzsortfield = &psortfield_esc; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
 						}

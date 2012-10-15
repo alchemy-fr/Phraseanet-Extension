@@ -6,7 +6,7 @@
 #include "base_header.h"
 #include "phrasea_clock_t.h"
 
-#include "../php_phrasea2.h"
+#include "../php_phrasea2/php_phrasea2.h"
 
 #include "cquerytree2parm.h"
 
@@ -15,7 +15,7 @@
 void freetree(CNODE *n);
 
 // true global ok here
-static const char *math2sql[] = {(char *) "=", (char *) "<>", (char *) ">", (char *) "<", (char *) ">=", (char *) "<="};
+static const char *math2sql[] = {"=",  "<>",  ">",  "<",  ">=",  "<="};
 
 
 char *kwclause(SQLCONN *conn, KEYWORD *k)
@@ -537,7 +537,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 
 //	if(MYSQL_THREAD_SAFE)
 //		mysql_thread_init();
-	
+
 	char sql[10240];
 	char *p;
 	int l;
@@ -555,9 +555,9 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 	ATHREAD threadl, threadr;
 #endif
 	Cquerytree2Parm *qp = (Cquerytree2Parm *) _qp;
-	
+
 //	zend_printf("%s (%d) : depth=%d, business='%s' <br/>\n", __FILE__, __LINE__, qp->depth, qp->business);
-	
+
 	// struct Squerytree2Parm *qp = (Squerytree2Parm *) _qp;
 	sql[0] = '\0';
 	startChrono(chrono_all);
@@ -1382,20 +1382,20 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 #ifdef WIN32
 						HANDLE  hThreadArray[2];
 						unsigned dwThreadIdArray[2];
-						hThreadArray[0] = (HANDLE)_beginthreadex( 
+						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
-							0,                      // use default stack size  
+							0,                      // use default stack size
 							querytree2,			    // thread function name
-							(void*)&qpl,             // argument to thread function 
-							0,                      // use default creation flags 
-							&dwThreadIdArray[0]);   // returns the thread identifier 
-						hThreadArray[1] = (HANDLE)_beginthreadex( 
+							(void*)&qpl,             // argument to thread function
+							0,                      // use default creation flags
+							&dwThreadIdArray[0]);   // returns the thread identifier
+						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
-							0,                      // use default stack size  
+							0,                      // use default stack size
 							querytree2,			    // thread function name
-							(void*)&qpr,             // argument to thread function 
-							0,                      // use default creation flags 
-							&dwThreadIdArray[1]);   // returns the thread identifier 
+							(void*)&qpr,             // argument to thread function
+							0,                      // use default creation flags
+							&dwThreadIdArray[1]);   // returns the thread identifier
 						WaitForMultipleObjects(2, hThreadArray, TRUE, INFINITE);
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
@@ -1442,20 +1442,20 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 #ifdef WIN32
 						HANDLE  hThreadArray[2];
 						unsigned dwThreadIdArray[2];
-						hThreadArray[0] = (HANDLE)_beginthreadex( 
+						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
-							0,                      // use default stack size  
+							0,                      // use default stack size
 							querytree2,			    // thread function name
-							(void*)&qpl,             // argument to thread function 
-							0,                      // use default creation flags 
-							&dwThreadIdArray[0]);   // returns the thread identifier 
-						hThreadArray[1] = (HANDLE)_beginthreadex( 
+							(void*)&qpl,             // argument to thread function
+							0,                      // use default creation flags
+							&dwThreadIdArray[0]);   // returns the thread identifier
+						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
-							0,                      // use default stack size  
+							0,                      // use default stack size
 							querytree2,			    // thread function name
-							(void*)&qpr,             // argument to thread function 
-							0,                      // use default creation flags 
-							&dwThreadIdArray[1]);   // returns the thread identifier 
+							(void*)&qpr,             // argument to thread function
+							0,                      // use default creation flags
+							&dwThreadIdArray[1]);   // returns the thread identifier
 						WaitForMultipleObjects(2, hThreadArray, TRUE, INFINITE);
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
@@ -1500,20 +1500,20 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 #ifdef WIN32
 						HANDLE  hThreadArray[2];
 						unsigned dwThreadIdArray[2];
-						hThreadArray[0] = (HANDLE)_beginthreadex( 
+						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
-							0,                      // use default stack size  
+							0,                      // use default stack size
 							querytree2,			    // thread function name
-							(void*)&qpl,             // argument to thread function 
-							0,                      // use default creation flags 
-							&dwThreadIdArray[0]);   // returns the thread identifier 
-						hThreadArray[1] = (HANDLE)_beginthreadex( 
+							(void*)&qpl,             // argument to thread function
+							0,                      // use default creation flags
+							&dwThreadIdArray[0]);   // returns the thread identifier
+						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
-							0,                      // use default stack size  
+							0,                      // use default stack size
 							querytree2,			    // thread function name
-							(void*)&qpr,             // argument to thread function 
-							0,                      // use default creation flags 
-							&dwThreadIdArray[1]);   // returns the thread identifier 
+							(void*)&qpr,             // argument to thread function
+							0,                      // use default creation flags
+							&dwThreadIdArray[1]);   // returns the thread identifier
 						WaitForMultipleObjects(2, hThreadArray, TRUE, INFINITE);
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
