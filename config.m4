@@ -11,10 +11,10 @@ if test "$PHP_PHRASEA2" != "no"; then
     dnl  PHP_EXPAND_PATH($MYSQL_INCLUDE, MYSQL_INCLUDE)
 
     dnl *************** get version ****************
-    AC_MSG_CHECKING([================================================= phrasea extension version number])
+    AC_MSG_CHECKING([====== phrasea extension version number])
     PHRASEAVERSION=
-    if test -r ./_VERSION.h; then
-        PHRASEAVERSION=`cat ./_VERSION.h | egrep -e "#define[[:blank:]]*PHDOTVERSION" | tr -d '\r' | sed  -e "s/#define[[:blank:]]*PHDOTVERSION[[:blank:]]*\(.*\)[[:space:]]*$/\1/"`
+    if test -r php_phrasea2/_VERSION.h; then
+        PHRASEAVERSION=`cat php_phrasea2/_VERSION.h | egrep -e "#define[[:blank:]]*PHDOTVERSION" | tr -d '\r' | sed  -e "s/#define[[:blank:]]*PHDOTVERSION[[:blank:]]*\(.*\)[[:space:]]*$/\1/"`
         AC_MSG_RESULT([$PHRASEAVERSION])
     else
         AC_MSG_ERROR([Cannot find file _VERSION.h])
@@ -28,12 +28,13 @@ if test "$PHP_PHRASEA2" != "no"; then
     # CPPFLAGS="$CPPFLAGS -gdwarf-2"
 
     dnl ****************** tell we will link with g++ *****************
-    CC="g++"
+    # CC="g++"
     # CC="$CC -g3"
     # CC="$CC -gdwarf-2"
 
     # PHP_ADD_LIBRARY_WITH_PATH($MYSQL_LIBNAME, $MYSQL_LIB_DIR, PHRASEA2_SHARED_LIBADD)
     PHP_SUBST(PHRASEA2_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(stdc++, 1, PHRASEA2_SHARED_LIBADD)
 
     dnl *************** search mysql inlude/lib path ****************
     AC_PATH_PROG([MYSQL_CONFIG], [mysql_config], , $PATH/usr/bin:/usr/local/mysql/bin)
@@ -54,7 +55,7 @@ if test "$PHP_PHRASEA2" != "no"; then
 
     AC_CHECK_LIB([mysqlclient], [my_init], [LIBMYSQL="OK"], [LIBMYSQL="BAD"])
 
-    PHP_NEW_EXTENSION(phrasea2, phrasea2.cpp \
+    PHP_NEW_EXTENSION(phrasea2, php_phrasea2/phrasea2.cpp \
                         phrasea_engine/cache.cpp\
                         phrasea_engine/fetchresults.cpp \
                         phrasea_engine/phrasea_clock_t.cpp \

@@ -38,13 +38,13 @@
 
 #include "_VERSION.h"
 
-#include "phrasea_engine/base_header.h"
-#include "phrasea_engine/sql.h"
+#include "../phrasea_engine/base_header.h"
+#include "../phrasea_engine/sql.h"
 
 #include "php_phrasea2.h"
 
-#include "phrasea_engine/trace_memory.h"
-#include "phrasea_engine/ftrace.h"
+#include "../phrasea_engine/trace_memory.h"
+#include "../phrasea_engine/ftrace.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(phrasea2)
 
@@ -65,8 +65,11 @@ static zend_function_entry phrasea2_functions[] = {
 };
 // -----------------------------------------------------------------------------
 
+#ifndef _WIN32
 #pragma push
 #pragma GCC diagnostic ignored "-Wwrite-strings"
+#endif
+
 
 zend_module_entry phrasea2_module_entry = {
 	STANDARD_MODULE_HEADER,
@@ -81,7 +84,9 @@ zend_module_entry phrasea2_module_entry = {
 	STANDARD_MODULE_PROPERTIES
 };	// pragma avoids "warning: deprecated conversion from string constant to ‘char*’" on this line
 
+#ifndef _WIN32
 #pragma pop
+#endif
 
 #ifdef COMPILE_DL_PHRASEA2
 
@@ -281,16 +286,18 @@ PHP_FUNCTION(phrasea_info)
 		if(epublisher->connect())
 		{
 			epublisher->close();
+			add_assoc_bool(return_value, (char *) "cnx", TRUE);
 			add_assoc_string(return_value, (char *) "cnx_ukey", epublisher->ukey, TRUE);
 		}
 		else
 		{
+			add_assoc_bool(return_value, (char *) "cnx", TRUE);
 			add_assoc_bool(return_value, (char *) "cnx_ukey", FALSE);
 		}
 	}
 	else
 	{
-		add_assoc_bool(return_value, (char *) "cnx_ukey", FALSE);
+		add_assoc_bool(return_value, (char *) "cnx", FALSE);
 	}
 }
 

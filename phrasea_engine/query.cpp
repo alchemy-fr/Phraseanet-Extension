@@ -1,7 +1,7 @@
 #include "base_header.h"
 #include "phrasea_clock_t.h"
 
-#include "../php_phrasea2.h"
+#include "../php_phrasea2/php_phrasea2.h"
 
 #include "cquerytree2parm.h"
 
@@ -39,9 +39,6 @@ bool pcanswercomp_sha(PCANSWER lhs, PCANSWER rhs)
 
 ZEND_FUNCTION(phrasea_query2)
 {
-	if(ZEND_NUM_ARGS() < 8 || ZEND_NUM_ARGS() > 10)
-		WRONG_PARAM_COUNT;
-
 	long session, sbasid;
 	zval *zqarray, *zcolllist;
 	long userid;
@@ -63,7 +60,6 @@ ZEND_FUNCTION(phrasea_query2)
 	int sortmethod = SORTMETHOD_STR;
 
 	char *sqlbusiness_c = NULL;
-
 
 	std::map<long, long> t_collid; // key : distant_coll_id (dbox side) ==> value : local_base_id (appbox side)
 
@@ -147,42 +143,55 @@ ZEND_FUNCTION(phrasea_query2)
 
 			// prepare a sql to filter business fields
 			// SECURITY : no need to escape because zbusiness are type long
-			std::stringstream sqlbusiness_strm;
-			sqlbusiness_strm << "OR FIND_IN_SET(record.coll_id, '";
-			bool first = true;
-
-			zval **tmp1;
-			int n = 0;
-			for(int i=0; TRUE; i++)
 			{
-				if(zend_hash_index_find(HASH_OF(zbusiness), i, (void **) &tmp1) == SUCCESS)
+				std::stringstream sqlbusiness_strm;
+				sqlbusiness_strm << "OR FIND_IN_SET(record.coll_id, '";
+				zval **tmp1;
+				bool first = true;
+				int n = 0;
+
+				for(int i=0; TRUE; i++)
 				{
-					if(Z_TYPE_PP(tmp1) == IS_LONG)
+					if(zend_hash_index_find(HASH_OF(zbusiness), i, (void **) &tmp1) == SUCCESS)
 					{
-						if(!first)
-							sqlbusiness_strm << ",";
-						sqlbusiness_strm << Z_LVAL_P(*tmp1);
-						first = false;
-						n++;
+						if(Z_TYPE_PP(tmp1) == IS_LONG)
+						{
+							if(!first)
+								sqlbusiness_strm << ",";
+							sqlbusiness_strm << Z_LVAL_P(*tmp1);
+							first = false;
+							n++;
+						}
 					}
+					else
+						break;
+				}
+				if(n > 0)
+				{
+					sqlbusiness_strm << "')";
+					std::string sqlbusiness_str = sqlbusiness_strm.str();
+					if(sqlbusiness_c = (char *)EMALLOC(sqlbusiness_str.length()+1))
+						memcpy(sqlbusiness_c, sqlbusiness_str.c_str(), sqlbusiness_str.length()+1);
 				}
 				else
-					break;
+				{
+					if(sqlbusiness_c = (char *)EMALLOC(1))
+						sqlbusiness_c[0] = '\0';
+				}
 			}
-			if(n > 0)
-			{
-				sqlbusiness_strm << "')";
-				std::string sqlbusiness_str = sqlbusiness_strm.str();
-				if(sqlbusiness_c = (char *)EMALLOC(sqlbusiness_str.length()+1))
-					memcpy(sqlbusiness_c, sqlbusiness_str.c_str(), sqlbusiness_str.length()+1);
-			}
-			else
-			{
-				if(sqlbusiness_c = (char *)EMALLOC(1))
-					sqlbusiness_c[0] = '\0';
-			}
-
 			break;
+
+		default:
+			WRONG_PARAM_COUNT;	// returns !
+			break;
+	}
+
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
+	if(!epublisher)
+	{
+		// we need conn !
+		//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
+		RETURN_FALSE;
 	}
 
 	if(!PHRASEA2_G(global_session) || PHRASEA2_G(global_session)->get_session_id() != session)
@@ -196,7 +205,6 @@ ZEND_FUNCTION(phrasea_query2)
 	CHRONO time_phpfct;
 	startChrono(time_phpfct);
 
-	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	SQLRES res(epublisher);
 
 	// replace list of 'local' collections  (base_ids) by list of 'distant' collections (coll ids)
@@ -235,7 +243,7 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
 				if(row)
 				{
 					// on se connecte sur la base distante
-					SQLCONN *conn = new SQLCONN(row->field(1), atoi(row->field(2)), row->field(5), row->field(6), row->field(4));
+					SQLCONN *conn = new SQLCONN(row->field(1, "127.0.0.1"), atoi(row->field(2, "3306")), row->field(5, "root"), row->field(6, ""), row->field(4, "dbox"));
 					if(conn && conn->connect())
 					{
 						add_assoc_double(return_value, (char *) "time_connect", stopChrono(time_connect));
@@ -282,8 +290,8 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 						restmp.query("SELECT BIT_COUNT(BIT_OR(`mask_xor` | `mask_and`)) FROM `_tmpmask`");
 						if((rowtmp = restmp.fetch_row()))
 						{
-							char *f = rowtmp->field(0);
-							if(f[1] == '\0' && f[0] == '0')
+							const char *f = rowtmp->field(0, "0");
+							if(f[0] == '0' && f[1] == '\0')
 							{
 								// all masks=0; we don't need masks in queries !
 								if(multidocMode == PHRASEA_MULTIDOC_DOCONLY)
@@ -313,7 +321,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 								zsortfieldlen = 32;
 							char zsortfield_esc[65];
 							zsortfield_esc[conn->escape_string(zsortfield, zsortfieldlen, zsortfield_esc)] = '\0';
-					
+
 							char *psortfield_esc = zsortfield_esc;
 							pzsortfield = &psortfield_esc; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
 						}
