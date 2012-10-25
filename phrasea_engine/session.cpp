@@ -4,96 +4,115 @@
 
 ZEND_FUNCTION(phrasea_clear_cache)
 {
-	if(ZEND_NUM_ARGS() != 1)
-		WRONG_PARAM_COUNT; // returns !
-
 	long sesid;
 
-	if(zend_parse_parameters(1 TSRMLS_CC, (char *) "l", &sesid) == FAILURE)
+	switch(ZEND_NUM_ARGS())
+	{
+		case 1:
+			if(zend_parse_parameters(1 TSRMLS_CC, (char *) "l", &sesid) == FAILURE)
+				RETURN_FALSE;
+			break;
+		default:
+			WRONG_PARAM_COUNT;	// returns !
+			break;
+	}
+
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
+	if(!epublisher)
+	{
+		// we need conn !
+		//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
 		RETURN_FALSE;
+	}
 
 	ZVAL_BOOL(return_value, FALSE);
 
-	SQLCONN *epublisher = PHRASEA2_G(epublisher);
-	if(epublisher)
+	if(sesid != 0)
 	{
-		if(sesid != 0)
+		// check if the session exists
+		char sql[65 + 20 + 1];
+		sprintf(sql, "UPDATE cache SET nact=nact+1, lastaccess=NOW() WHERE session_id=%ld", sesid);
+		if(epublisher->query(sql))
 		{
-			// check if the session exists
-			char sql[65 + 20 + 1];
-			sprintf(sql, "UPDATE cache SET nact=nact+1, lastaccess=NOW() WHERE session_id=%ld", sesid);
-			if(epublisher->query(sql))
+			if(epublisher->affected_rows() == 1)
 			{
-				if(epublisher->affected_rows() == 1)
+				char *fname;
+				int l = strlen(PHRASEA2_G(tempPath))
+					+ 9 // "_phrasea."
+					+ strlen(epublisher->ukey)
+					+ 9 // ".answers."
+					+ 33 // zsession
+					+ 1; // '\0'
+
+				if((fname = (char *) EMALLOC(l)))
 				{
-					char *fname;
-					int l = strlen(PHRASEA2_G(tempPath))
-						+ 9 // "_phrasea."
-						+ strlen(epublisher->ukey)
-						+ 9 // ".answers."
-						+ 33 // zsession
-						+ 1; // '\0'
+					sprintf(fname, "%s_phrasea.%s.answers.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, sesid);
+					remove(fname);
+					sprintf(fname, "%s_phrasea.%s.spots.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, sesid);
+					remove(fname);
+					EFREE(fname);
+				}
 
-					if((fname = (char *) EMALLOC(l)))
+				if(CACHE_SESSION * tmp_session = new CACHE_SESSION(0, epublisher))
+				{
+					if(tmp_session->restore(sesid))
 					{
-						sprintf(fname, "%s_phrasea.%s.answers.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, sesid);
-						remove(fname);
-						sprintf(fname, "%s_phrasea.%s.spots.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, sesid);
-						remove(fname);
-						EFREE(fname);
-					}
+						if(PHRASEA2_G(global_session))
+							delete PHRASEA2_G(global_session);
+						PHRASEA2_G(global_session) = tmp_session;
 
-					if(CACHE_SESSION * tmp_session = new CACHE_SESSION(0, epublisher))
-					{
-						if(tmp_session->restore(sesid))
-						{
-							if(PHRASEA2_G(global_session))
-								delete PHRASEA2_G(global_session);
-							PHRASEA2_G(global_session) = tmp_session;
+						//PHRASEA2_G(global_session)->serialize_php(return_value, false); // false : do NOT include offlines and not registered
 
-							//PHRASEA2_G(global_session)->serialize_php(return_value, false); // false : do NOT include offlines and not registered
-
-							ZVAL_BOOL(return_value, TRUE);
-						}
+						ZVAL_BOOL(return_value, TRUE);
 					}
 				}
 			}
 		}
-		epublisher->close();
 	}
+	epublisher->close();
 }
 
 ZEND_FUNCTION(phrasea_create_session)
 {
-	if(ZEND_NUM_ARGS() != 1)
-		WRONG_PARAM_COUNT;
-
 	long usrid;
 
-	if(zend_parse_parameters(1 TSRMLS_CC, (char *) "l", &usrid) == FAILURE)
+	switch(ZEND_NUM_ARGS())
+	{
+		case 1:
+			if(zend_parse_parameters(1 TSRMLS_CC, (char *) "l", &usrid) == FAILURE)
+				RETURN_FALSE;
+			break;
+		default:
+			WRONG_PARAM_COUNT;	// returns !
+			break;
+	}
+
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
+	if(!epublisher)
+	{
+		// we need conn !
+		//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
 		RETURN_FALSE;
+	}
 
 	ZVAL_BOOL(return_value, FALSE);
 
 	long sesid = -1;
 	char sql[96 + 20 + 1];
-	SQLCONN *epublisher = PHRASEA2_G(epublisher);
-	if(epublisher)
+
+	sprintf(sql, "INSERT INTO cache (session_id, nact, lastaccess, session, usr_id) VALUES (null, 0, NOW(), '', %li)", usrid);
+	if(epublisher->query(sql))
 	{
-		sprintf(sql, "INSERT INTO cache (session_id, nact, lastaccess, session, usr_id) VALUES (null, 0, NOW(), '', %li)", usrid);
-		if(epublisher->query(sql))
+
+		SQLRES res(epublisher);
+		if(res.query("SELECT LAST_INSERT_ID()"))
 		{
-
-			SQLRES res(epublisher);
-			if(res.query("SELECT LAST_INSERT_ID()"))
+			SQLROW *row = res.fetch_row();
+			if(row)
 			{
-				SQLROW *row = res.fetch_row();
-				if(row)
-				{
-					sesid = atol(row->field(0, "-1"));
+				sesid = atol(row->field(0, "-1"));
 
-					//					ZVAL_LONG(return_value, sesid);
-				}
+				//					ZVAL_LONG(return_value, sesid);
 			}
 		}
 	}
@@ -190,86 +209,104 @@ ZEND_FUNCTION(phrasea_create_session)
 
 ZEND_FUNCTION(phrasea_open_session)
 {
-	if(ZEND_NUM_ARGS() != 2)
-		WRONG_PARAM_COUNT;	// returns !
-
 	long sesid, usrid;
 
-	if(zend_parse_parameters(2 TSRMLS_CC, (char *) "ll", &sesid, &usrid) == FAILURE)
+	switch(ZEND_NUM_ARGS())
+	{
+		case 2:
+			if(zend_parse_parameters(2 TSRMLS_CC, (char *) "ll", &sesid, &usrid) == FAILURE)
+				RETURN_FALSE;
+			break;
+		default:
+			WRONG_PARAM_COUNT;	// returns !
+			break;
+	}
+
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
+	if(!epublisher)
+	{
+		// we need conn !
+		//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
 		RETURN_FALSE;
+	}
 
 	ZVAL_BOOL(return_value, FALSE);
 
 	char sql[65 + 20 + 12 + 20 + 1];
-	SQLCONN *epublisher = PHRASEA2_G(epublisher);
-	if(epublisher)
+	sprintf(sql, "UPDATE cache SET nact=nact+1, lastaccess=NOW() WHERE session_id=%li AND usr_id=%li", sesid, usrid);
+	if(epublisher->query(sql))
 	{
-		sprintf(sql, "UPDATE cache SET nact=nact+1, lastaccess=NOW() WHERE session_id=%li AND usr_id=%li", sesid, usrid);
-		if(epublisher->query(sql))
+		if(epublisher->affected_rows() == 1)
 		{
-			if(epublisher->affected_rows() == 1)
+			if(CACHE_SESSION *tmp_session = new CACHE_SESSION(0, epublisher))
 			{
-				if(CACHE_SESSION *tmp_session = new CACHE_SESSION(0, epublisher))
+				if(tmp_session->restore(sesid))
 				{
-					if(tmp_session->restore(sesid))
+					if(tmp_session->get_session_id() == sesid)
 					{
-						if(tmp_session->get_session_id() == sesid)
-						{
-							if(PHRASEA2_G(global_session))
-								delete PHRASEA2_G(global_session);
-							PHRASEA2_G(global_session) = tmp_session;
+						if(PHRASEA2_G(global_session))
+							delete PHRASEA2_G(global_session);
+						PHRASEA2_G(global_session) = tmp_session;
 
-							PHRASEA2_G(global_session)->serialize_php(return_value); //, false); // do NOT include offlines and non registered
-						}
+						PHRASEA2_G(global_session)->serialize_php(return_value); //, false); // do NOT include offlines and non registered
 					}
 				}
 			}
 		}
-		epublisher->close();
 	}
+	epublisher->close();
 }
 
 ZEND_FUNCTION(phrasea_close_session)
 {
-	if(ZEND_NUM_ARGS() != 1)
-		WRONG_PARAM_COUNT;	// returns !
-
 	long sesid;
 
-	if(zend_parse_parameters(1 TSRMLS_CC, (char *) "l", &sesid) == FAILURE)
+	switch(ZEND_NUM_ARGS())
+	{
+		case 1:
+			if(zend_parse_parameters(1 TSRMLS_CC, (char *) "l", &sesid) == FAILURE)
+				RETURN_FALSE;
+			break;
+		default:
+			WRONG_PARAM_COUNT;	// returns !
+			break;
+	}
+
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
+	if(!epublisher)
+	{
+		// we need conn !
+		//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
 		RETURN_FALSE;
+	}
 
 	ZVAL_BOOL(return_value, FALSE);
 
 	char sql[36 + 20 + 1];
-	SQLCONN *epublisher = PHRASEA2_G(epublisher);
-	if(epublisher)
+	// delete session from cache
+	sprintf(sql, "DELETE FROM cache WHERE session_id=%li", sesid);
+	if(epublisher->query(sql))
 	{
-		// delete session from cache
-		sprintf(sql, "DELETE FROM cache WHERE session_id=%li", sesid);
-		if(epublisher->query(sql))
+		if(epublisher->affected_rows() == 1)
 		{
-			if(epublisher->affected_rows() == 1)
+			char *fname;
+			int l = strlen(PHRASEA2_G(tempPath))
+				+ 9 // "_phrasea."
+				+ strlen(epublisher->ukey)
+				+ 9 // ".answers."
+				+ 33 // zsession
+				+ 1; // '\0'
+			if((fname = (char *) EMALLOC(l)))
 			{
-				char *fname;
-				int l = strlen(PHRASEA2_G(tempPath))
-					+ 9 // "_phrasea."
-					+ strlen(epublisher->ukey)
-					+ 9 // ".answers."
-					+ 33 // zsession
-					+ 1; // '\0'
-				if((fname = (char *) EMALLOC(l)))
-				{
-					sprintf(fname, "%s_phrasea.%s.answers.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, sesid);
-					remove(fname);
-					sprintf(fname, "%s_phrasea.%s.spots.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, sesid);
-					remove(fname);
-					EFREE(fname);
-				}
-				ZVAL_BOOL(return_value, TRUE);
+				sprintf(fname, "%s_phrasea.%s.answers.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, sesid);
+				remove(fname);
+				sprintf(fname, "%s_phrasea.%s.spots.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, sesid);
+				remove(fname);
+				EFREE(fname);
 			}
+			ZVAL_BOOL(return_value, TRUE);
 		}
-		epublisher->close();
 	}
+	epublisher->close();
 }
 

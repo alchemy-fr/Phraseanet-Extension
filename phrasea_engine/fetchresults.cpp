@@ -27,7 +27,6 @@ ZEND_FUNCTION(phrasea_fetch_results)
 	CHRONO time_phpfct;
 
 	startChrono(time_phpfct);
-
 	switch(ZEND_NUM_ARGS())
 	{
 		case 3:
@@ -47,6 +46,34 @@ ZEND_FUNCTION(phrasea_fetch_results)
 			break;
 	}
 
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
+
+	if(!epublisher)
+	{
+/*
+zend_exception_get_default(TSRMLS_C)
+zend_get_error_exception(TSRMLS_D)
+
+spl_ce_LogicException;
+spl_ce_BadFunctionCallException;
+spl_ce_BadMethodCallException;
+spl_ce_DomainException;
+spl_ce_InvalidArgumentException;
+spl_ce_LengthException;
+spl_ce_OutOfRangeException;
+spl_ce_RuntimeException;
+spl_ce_OutOfBoundsException;
+spl_ce_OverflowException;
+spl_ce_RangeException;
+spl_ce_UnderflowException;
+spl_ce_UnexpectedValueException;
+*/
+		// we need conn !
+//		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
+//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
+		RETURN_FALSE;
+	}
+
 	// we need the session only if we ask for xml
 	if(getxml)
 	{
@@ -57,7 +84,6 @@ ZEND_FUNCTION(phrasea_fetch_results)
 		}
 	}
 
-	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	char tmpstr[1024]; // buffer to format short messages (error messages...)
 	CHRONO chrono;
 
@@ -144,7 +170,7 @@ ZEND_FUNCTION(phrasea_fetch_results)
 								startChrono(chrono);
 								SQLCONN *conn = PHRASEA2_G(global_session)->connect(panswer[a].bid);
 								add_assoc_double(zanswer, (char *) "time_dboxConnect", stopChrono(chrono));
-								
+
 								if(conn)
 								{
 									SQLRES res(conn);

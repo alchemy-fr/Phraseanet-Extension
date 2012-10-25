@@ -1,6 +1,11 @@
+1.20.1.8
+fix : segfault when calling some phrasea_*(...) functions and connection was not set (phrasea_conn(...) was not called)
+
 1.20.1.7
 fix : allow null values in sql (effect depends on location, ex. null password is '', but null record_id is 0)
 CS : change many "char *" to "const char *"
+cleanup : code moved from .../ to .../php_phrasea2
+cleanup old windows versions due to last security fix
 
 1.20.1.6
 security fix

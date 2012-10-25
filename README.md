@@ -4,11 +4,10 @@ Phraseanet Extension
 To install it :
 
 <pre>
+phpize
 ./configure
 make
-make install
+sudo make install
 </pre>
-
-DO NOT 'phpize' before configure !
 
 to test multi-thread queries (experimental), add option "--enable-maintainer-zts" to ./configure

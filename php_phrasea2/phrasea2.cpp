@@ -286,16 +286,18 @@ PHP_FUNCTION(phrasea_info)
 		if(epublisher->connect())
 		{
 			epublisher->close();
+			add_assoc_bool(return_value, (char *) "cnx", TRUE);
 			add_assoc_string(return_value, (char *) "cnx_ukey", epublisher->ukey, TRUE);
 		}
 		else
 		{
+			add_assoc_bool(return_value, (char *) "cnx", TRUE);
 			add_assoc_bool(return_value, (char *) "cnx_ukey", FALSE);
 		}
 	}
 	else
 	{
-		add_assoc_bool(return_value, (char *) "cnx_ukey", FALSE);
+		add_assoc_bool(return_value, (char *) "cnx", FALSE);
 	}
 }
 

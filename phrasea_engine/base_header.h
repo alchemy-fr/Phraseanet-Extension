@@ -35,6 +35,7 @@
 #include "ext/standard/info.h"
 #include "ext/standard/php_string.h"
 #include "zend_exceptions.h"
+#include "ext/spl/spl_exceptions.h"
 
 #ifdef PHP_WIN32
 # include <winsock2.h>

@@ -28,12 +28,13 @@ if test "$PHP_PHRASEA2" != "no"; then
     # CPPFLAGS="$CPPFLAGS -gdwarf-2"
 
     dnl ****************** tell we will link with g++ *****************
-    CC="g++"
+    # CC="g++"
     # CC="$CC -g3"
     # CC="$CC -gdwarf-2"
 
     # PHP_ADD_LIBRARY_WITH_PATH($MYSQL_LIBNAME, $MYSQL_LIB_DIR, PHRASEA2_SHARED_LIBADD)
     PHP_SUBST(PHRASEA2_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(stdc++, 1, PHRASEA2_SHARED_LIBADD)
 
     dnl *************** search mysql inlude/lib path ****************
     AC_PATH_PROG([MYSQL_CONFIG], [mysql_config], , $PATH/usr/bin:/usr/local/mysql/bin)
