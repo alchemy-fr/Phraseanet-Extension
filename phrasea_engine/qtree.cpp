@@ -12,6 +12,8 @@
 
 #include "thread.h"
 
+#define MAXSQL 8192		//  max length of sql query
+
 void freetree(CNODE *n);
 
 // true global ok here
@@ -80,7 +82,6 @@ char *kwclause(SQLCONN *conn, KEYWORD *k)
 		}
 		*p = '\0';
 	}
-//	zend_printf("%s \n", ret);
 
 	return(ret);
 }
@@ -531,6 +532,15 @@ void doOperatorEXCEPT(CNODE *n)
 	}
 }
 
+void sprintfSQL(char *str, const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	if( vsnprintf(str, MAXSQL, format, args) >= MAXSQL)
+		str[0] = '\0';
+	va_end(args);
+}
+
 THREAD_ENTRYPOINT querytree2(void *_qp)
 {
 	TSRMLS_FETCH();
@@ -545,7 +555,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 	zval *objl = NULL;
 	zval *objr = NULL;
 	CHRONO chrono_all;
-
+	char *sqlerr = NULL;
 #ifndef PHP_WIN32
 //	pthread_attr_t thread_attr;
 #endif
@@ -583,7 +593,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					if(*(qp->psortField))
 					{
 						// ===== OK =====
-						sprintf(sql, "SELECT record_id, record.coll_id"
+						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								", prop.value AS skey"
 								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 								// ", NULL AS sha256"
@@ -592,11 +602,12 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 								, qp->sqltrec
 								, *(qp->psortField)
 								);
+
 					}
 					else
 					{
 						// ===== OK =====
-						sprintf(sql, "SELECT record_id, record.coll_id"
+						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								// ", NULL AS skey"
 								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 								// ", NULL AS sha256"
@@ -610,7 +621,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					if(*(qp->psortField))
 					{
 						// ===== OK =====
-						sprintf(sql, "SELECT record_id, record.coll_id"
+						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								", prop.value AS skey"
 								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 								// ", NULL AS sha256"
@@ -625,7 +636,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					else
 					{
 						// ===== OK =====
-						sprintf(sql, "SELECT record_id, record.coll_id"
+						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								// ", NULL AS skey"
 								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 								// ", NULL AS sha256"
@@ -636,7 +647,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 								);
 					}
 				}
-				qp->sqlconn->phrasea_query(sql, qp);
+				qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 				break;
 
 			case PHRASEA_KW_LAST: // last
@@ -645,7 +656,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					if(*(qp->psortField))
 					{
 						// ===== OK =====
-						sprintf(sql, "SELECT r.record_id, r.coll_id"
+						sprintfSQL(sql, "SELECT r.record_id, r.coll_id"
 								", prop.value AS skey"
 								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 								// ", NULL AS sha256"
@@ -663,7 +674,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					else
 					{
 						// ===== OK =====
-						sprintf(sql, "SELECT record_id, record.coll_id"
+						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								// ", NULL AS skey"
 								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 								// ", NULL AS sha256"
@@ -673,7 +684,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 								, qp->n->content.numparm.v
 								);
 					}
-					qp->sqlconn->phrasea_query(sql, qp);
+					qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 				}
 				break;
 
@@ -685,7 +696,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					if(*(qp->psortField))
 					{
 						// ===== OK =====
-						l = sprintf(sql, "SELECT idx.record_id, record.coll_id"
+						sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
 									", prop.value AS skey"
 									", hitstart, hitlen, iw"
 									// ", NULL AS sha256"
@@ -703,7 +714,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					else
 					{
 						// ===== OK =====
-						l = sprintf(sql, "SELECT idx.record_id, record.coll_id"
+						sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
 									", NULL AS skey"
 									", hitstart, hitlen, iw"
 									// ", NULL AS sha256"
@@ -736,8 +747,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 							add_assoc_string(qp->result, (char *) "keyword", plk->kword, TRUE);
 					}
 
-					qp->sqlconn->phrasea_query(sql, qp);
-//					phrasea_query(sql, qp);
+					qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 				}
 				break;
 
@@ -762,7 +772,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 							if(*(qp->psortField))
 							{
 								// ===== OK =====
-								l = sprintf(sql, "SELECT idx.record_id, record.coll_id"
+								sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
 											", prop.value AS skey"
 											", hitstart, hitlen, iw"
 											// ", NULL AS sha256"
@@ -782,7 +792,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 							else
 							{
 								// ===== OK =====
-								l = sprintf(sql, "SELECT idx.record_id, record.coll_id"
+								sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
 											", NULL AS skey"
 											", hitstart, hitlen, iw"
 											// ", NULL AS sha256"
@@ -818,7 +828,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 								}
 								add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, TRUE);
 							}
-							qp->sqlconn->phrasea_query(sql, qp);
+							qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 						}
 						else
 						{
@@ -877,7 +887,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 										// special query "sha256=sha256" (tuples)
 										*(qp->psortField) = NULL; // !!!!! this special query cancels sort !!!!!
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, coll_id"
+										sprintfSQL(sql, "SELECT record_id, coll_id"
 												", NULL AS skey"
 												", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												", sha256"
@@ -891,7 +901,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 										// ===== OK =====
 										if(*(qp->psortField))
 										{
-											sprintf(sql, "SELECT record_id, record.coll_id"
+											sprintfSQL(sql, "SELECT record_id, record.coll_id"
 													", prop.value AS skey"
 													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 													// ", NULL AS sha256"
@@ -907,7 +917,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 										else
 										{
 											// ===== OK =====
-											sprintf(sql, "SELECT record_id, record.coll_id"
+											sprintfSQL(sql, "SELECT record_id, record.coll_id"
 													// ", NULL AS skey"
 													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 													// ", NULL AS sha256"
@@ -926,7 +936,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									if(*(qp->psortField))
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record.record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												", prop.value AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
@@ -942,7 +952,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									else
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												// ", NULL AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
@@ -960,7 +970,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									if(*(qp->psortField))
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", prop.value AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
@@ -976,7 +986,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									else
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												// ", NULL AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
@@ -998,7 +1008,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									if(*(qp->psortField))
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", prop.value AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
@@ -1014,7 +1024,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									else
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												// ", NULL AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
@@ -1031,44 +1041,39 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 								// champ technique recordstatus ?
 								if(!sql[0] && strcmp(pfield, "recordstatus") == 0)
 								{
-									// pas de support direct 64 bits
-									char buff_and[] = "0x????????????????";
-									char buff_xor[] = "0x????????????????";
-									int l, q, b;
-									unsigned char h_and, h_xor;
-									l = strlen(pvalue) - 1;
-									for(q = 15; q >= 0; q--)
+									// convert status mask 01xx10x1x0110x0 to mask_and and mask_xor
+									char buff_and[65];	// 64 bits and nul
+									char buff_xor[65];	// 64 bits and nul
+									int i; l=MIN(strlen(pvalue), 64);
+									for(i=0; i<l; i++)
 									{
-										h_and = h_xor = 0;
-										for(b = 0; b < 4; b++)
+										buff_and[i] = buff_xor[i] = '0';
+										switch(pvalue[i])
 										{
-											if(l >= 0)
-											{
-												switch(pvalue[l])
-												{
-													case '0':
-														h_and |= (1 << b);
-														break;
-													case '1':
-														h_and |= (1 << b);
-														h_xor |= (1 << b);
-														break;
-												}
-												l--;
-											}
+											case '0':
+												buff_and[i] = buff_xor[i] = '1';
+												break;
+											case '1':
+												buff_and[i] = '1';
+												break;
 										}
-										buff_and[2 + q] = (h_and > 9) ? ('a' + (h_and - 10)) : ('0' + h_and);
-										buff_xor[2 + q] = (h_xor > 9) ? ('a' + (h_xor - 10)) : ('0' + h_xor);
 									}
+									if(i==0)	// fix 0b to 0b0;
+									{
+										buff_and[i] = buff_xor[i] = '0';
+										i++;
+									}
+									buff_and[i] = buff_xor[i] = '\0';
+
 									if(*(qp->psortField))
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", prop.value AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s INNER JOIN prop USING(record_id)"
-												" WHERE ((status ^ %s) & %s = 0) AND prop.name='%s'"
+												" WHERE ((status ^ 0b%s) & 0b%s = 0) AND prop.name='%s'"
 												, qp->sqltrec
 												, buff_xor
 												, buff_and
@@ -1078,12 +1083,12 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									else
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												// ", NULL AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s"
-												" WHERE ((status ^ %s) & %s = 0)"
+												" WHERE ((status ^ 0b%s) & 0b%s = 0)"
 												, qp->sqltrec
 												, buff_xor
 												, buff_and
@@ -1103,7 +1108,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									if(*(qp->psortField))
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record.record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												", propsort.value AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
@@ -1122,7 +1127,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									else
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record.record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												// ", NULL AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
@@ -1138,7 +1143,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									}
 								}
 
-								qp->sqlconn->phrasea_query(sql, qp);
+								qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 							}
 							else
 							{
@@ -1235,7 +1240,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									if(*(qp->psortField))
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", prop.value AS skey"
 												", hitstart, hitlen"
 												// ", NULL AS iw"
@@ -1253,7 +1258,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									else
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", NULL AS skey"
 												", hitstart, hitlen"
 												// ", NULL AS iw"
@@ -1273,7 +1278,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									if(*(qp->psortField))
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", prop.value AS skey"
 												", hitstart, hitlen"
 												// ", NULL AS iw"
@@ -1292,7 +1297,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									else
 									{
 										// ===== OK =====
-										sprintf(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", NULL AS skey"
 												", hitstart, hitlen"
 												// ", NULL AS iw"
@@ -1308,7 +1313,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									}
 								}
 
-								qp->sqlconn->phrasea_query(sql, qp);
+								qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 							}
 							else
 							{
@@ -1546,13 +1551,20 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 				break;
 		}
 
+
 		if(qp->result)
 		{
 			add_assoc_double(qp->result, (char *) "time_all", stopChrono(chrono_all));
 			if(qp->n->time_C != -1)
 				add_assoc_double(qp->result, (char *) "time_C", qp->n->time_C);
 			if(sql[0] != '\0')
+			{
 				add_assoc_string(qp->result, (char *) "sql", sql, true);
+				if(sqlerr)
+					add_assoc_string(qp->result, (char *) "sqlerr", sqlerr, true);
+				else
+					add_assoc_null(qp->result, (char *) "sqlerr");
+			}
 			if(qp->n->time_sqlQuery != -1)
 				add_assoc_double(qp->result, (char *) "time_sqlQuery", qp->n->time_sqlQuery);
 			if(qp->n->time_sqlStore != -1)
@@ -1561,6 +1573,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 				add_assoc_double(qp->result, (char *) "time_sqlFetch", qp->n->time_sqlFetch);
 			add_assoc_long(qp->result, (char *) "nbanswers", qp->n->answers.size());
 		}
+		if(sqlerr)
+			free(sqlerr);
 	}
 	else
 	{
