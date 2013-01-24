@@ -7,7 +7,6 @@
 #include "phrasea_clock_t.h"
 
 #include "../php_phrasea2/php_phrasea2.h"
-
 #include "cquerytree2parm.h"
 
 #include "thread.h"
@@ -20,20 +19,42 @@ void freetree(CNODE *n);
 static const char *math2sql[] = {"=",  "<>",  ">",  "<",  ">=",  "<="};
 
 
-char *kwclause(SQLCONN *conn, KEYWORD *k)
+char *kwclause(Cquerytree2Parm *qp, KEYWORD *k)
 {
 	char *ret = NULL;
 
+	int ltot = 0;
+	int llng = 0;
+	if(qp->lng)
+	{
+		// add lng to the query
+		// (QQQQ) AND lnq='LNG'
+		ltot += 1 + (llng = strlen(qp->lng)) + 11 + 1;
+	}
+
 	KEYWORD *k0 = k;
 	int nkeywords = 0;
-	int ltot = 0;
 	for(k = k0; k; k = k->nextkeyword)
 	{
-		int l = strlen(k->kword);
-		k->l_esc = conn->escape_string(k->kword, l, NULL);	// needed place to escape
+		char *kk;
+		int l;
+
+		if(qp->stemmer)
+		{
+			l = strlen(k->kword);
+			kk = (char *)(sb_stemmer_stem(qp->stemmer, (const sb_symbol *)(k->kword), l));
+			l = sb_stemmer_length(qp->stemmer);
+		}
+		else
+		{
+			kk = k->kword;
+			l = strlen(kk);
+		}
+
+		k->l_esc = qp->sqlconn->escape_string(kk, l, NULL);	// needed place to escape
 		if( (k->kword_esc = (char*)EMALLOC(k->l_esc)) )
 		{
-			k->l_esc = conn->escape_string(k->kword, l, k->kword_esc);	// escape
+			k->l_esc = qp->sqlconn->escape_string(kk, l, k->kword_esc);	// escape
 			for(char *p = k->kword_esc; *p; p++)
 			{
 				if(*p == '*')
@@ -56,6 +77,10 @@ char *kwclause(SQLCONN *conn, KEYWORD *k)
 	if( (ret = (char *)EMALLOC(ltot + 1)) )
 	{
 		char *p = ret;
+
+		if(qp->lng)
+			*p++ = '(';
+
 		for(k = k0; k; k = k->nextkeyword)
 		{
 			if(k->kword_esc)
@@ -80,6 +105,15 @@ char *kwclause(SQLCONN *conn, KEYWORD *k)
 				}
 			}
 		}
+		if(qp->lng)
+		{
+			memcpy(p, ") AND lng='", 11);
+			p += 11;
+			memcpy(p, qp->lng, llng);
+			p += llng;
+			*p++ = '\'';
+		}
+
 		*p = '\0';
 	}
 
@@ -690,7 +724,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 
 			case PHRASEA_KEYLIST: // simple word
 				plk = qp->n->content.multileaf.firstkeyword;
-				if(plk && (p = kwclause(qp->sqlconn, plk)))
+				if(plk && (p = kwclause(qp, plk)))
 				{
 					// const char *sql_business = qp->business ? "" : "AND !idx.business";
 					if(*(qp->psortField))
@@ -756,7 +790,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					&& qp->n->content.boperator.r->content.multileaf.firstkeyword && qp->n->content.boperator.r->content.multileaf.firstkeyword->kword)
 				{
 					plk = qp->n->content.boperator.l->content.multileaf.firstkeyword;
-					if(plk && (p = kwclause(qp->sqlconn, plk)))
+					if(plk && (p = kwclause(qp, plk)))
 					{
 						// SECURITY : escape fieldname
 						char *pfield = qp->n->content.boperator.r->content.multileaf.firstkeyword->kword;
@@ -1337,11 +1371,30 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
+						HANDLE  hThreadArray[2];
+						unsigned dwThreadIdArray[2];
+						hThreadArray[0] = (HANDLE)_beginthreadex(
+							NULL,                   // default security attributes
+							0,                      // use default stack size
+							querytree2,			    // thread function name
+							(void*)&qpl,             // argument to thread function
+							0,                      // use default creation flags
+							&dwThreadIdArray[0]);   // returns the thread identifier
+						hThreadArray[1] = (HANDLE)_beginthreadex(
+							NULL,                   // default security attributes
+							0,                      // use default stack size
+							querytree2,			    // thread function name
+							(void*)&qpr,             // argument to thread function
+							0,                      // use default creation flags
+							&dwThreadIdArray[1]);   // returns the thread identifier
+						WaitForMultipleObjects(2, hThreadArray, TRUE, INFINITE);
+						CloseHandle(hThreadArray[0]);
+						CloseHandle(hThreadArray[1]);
 #else
 						THREAD_START(threadl, querytree2, &qpl);
 						THREAD_START(threadr, querytree2, &qpr);
@@ -1380,8 +1433,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
@@ -1440,8 +1493,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
@@ -1498,8 +1551,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business);
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
