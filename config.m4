@@ -28,7 +28,7 @@ if test "$PHP_PHRASEA2" != "no"; then
     # CPPFLAGS="$CPPFLAGS -gdwarf-2"
 
     dnl ****************** tell we will link with g++ *****************
-    # CC="g++"
+    CC="g++"
     # CC="$CC -g3"
     # CC="$CC -gdwarf-2"
 
@@ -55,7 +55,15 @@ if test "$PHP_PHRASEA2" != "no"; then
 
     AC_CHECK_LIB([mysqlclient], [my_init], [LIBMYSQL="OK"], [LIBMYSQL="BAD"])
 
-    PHP_NEW_EXTENSION(phrasea2, php_phrasea2/phrasea2.cpp \
+    STEF=`ls libstemmer_c/src_c/stem_UTF_8_*.c`
+
+
+    PHP_NEW_EXTENSION(phrasea2, \
+                        php_phrasea2/phrasea2.cpp \
+                        ${STEF} \
+                        libstemmer_c/runtime/api.c\
+                        libstemmer_c/runtime/utilities.c\
+                        libstemmer_c/libstemmer/libstemmer_utf8.c\
                         phrasea_engine/cache.cpp\
                         phrasea_engine/fetchresults.cpp \
                         phrasea_engine/phrasea_clock_t.cpp \
