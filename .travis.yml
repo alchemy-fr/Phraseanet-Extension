@@ -1,4 +1,5 @@
 script:
+	- phpize
 	- ./configure
 	- make
 	- sudo make install
