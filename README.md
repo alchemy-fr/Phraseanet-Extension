@@ -1,6 +1,8 @@
 Phraseanet Extension
 ====================
 
+[![Build Status](https://travis-ci.org/alchemy-fr/Phraseanet-Extension.png?branch=master)](https://travis-ci.org/alchemy-fr/Phraseanet-Extension)
+
 To install it :
 
 <pre>
