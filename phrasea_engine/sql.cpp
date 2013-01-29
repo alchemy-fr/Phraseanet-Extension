@@ -15,6 +15,23 @@
 #define QUOTE(x) _QUOTE(x)
 #define _QUOTE(a) #a
 
+
+void sprintfSQLERR(char **str, const char *format, ...)
+{
+	int l = 0;
+	va_list args;
+	va_start(args, format);
+	*str = NULL;
+	l = vsnprintf(*str, l, format, args);
+	if( (*str = (char *)(malloc(l+1))) )
+	{
+	 	va_start(args, format);
+		vsnprintf(*str, l+1, format, args);
+	}
+	va_end(args);
+}
+
+
 SQLCONN::SQLCONN(const char *host, unsigned int port, const char *user, const char *passwd, const char *dbname)
 {
 // ftrace("%s \n", dbname);
@@ -267,26 +284,17 @@ const char *SQLROW::field(int n, const char *replaceNULL)
 // send a 'leaf' query to a databox
 // results are returned into the node (qp->n)
 
-void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp)
+void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 {
 	qp->sqlconn->connect();
 	MYSQL *xconn = (MYSQL *)(qp->sqlconn->get_native_conn());
-/*
-	SQLCONN xconn(this->host, this->port, this->user, this->passwd, this->dbname);
-	xconn.connect();
-*/
 	CHRONO chrono;
 
 	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
 
-//	mysql_thread_init();
-
 	startChrono(chrono);
 
-	// zend_printf("SQL:%s<br/>\n", sql);
-
 	MYSQL_STMT *stmt;
-//	if((stmt = mysql_stmt_init(&(this->mysql_connx))))
 	if((stmt = mysql_stmt_init(xconn)))
 	{
 //		qp->sqlmutex->lock();
@@ -433,249 +441,27 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp)
 					}
 					else // store error
 					{
-						zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+						sprintfSQLERR(sqlerr, "ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 					}
 				}
 				else // bind error
 				{
-					zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+					sprintfSQLERR(sqlerr, "ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 				}
 			}
 			else // execute error
 			{
-				zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+				sprintfSQLERR(sqlerr, "ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
 			}
 		}
 		else // prepare error
 		{
-			zend_printf("ERR: line %d : %s<br/>\n%s<br/>\n", __LINE__, mysql_stmt_error(stmt), sql);
-		}
-
-//		mysql_stmt_close(stmt);
-//		qp->sqlmutex->unlock();
-	}
-//	mysql_thread_end();
-}
-
-/* ==================================================================
-
-void phrasea_query(char *sql, Cquerytree2Parm *qp)
-{
-	MYSQL connx;
-	bool connok = false;
-
-	mysql_init(&connx);
-#ifdef MYSQL_OPT_RECONNECT
-	my_bool reconnect = 1;
-	mysql_options(&connx), MYSQL_OPT_RECONNECT, &reconnect);
-#endif
-	my_bool compress = 1;
-	mysql_options(&connx, MYSQL_OPT_COMPRESS, &compress);
-
-	if(mysql_real_connect(&connx, qp->sqlconn->host, qp->sqlconn->user, qp->sqlconn->passwd, qp->sqlconn->dbname, qp->sqlconn->port, NULL, CLIENT_COMPRESS) != NULL)
-	{
-#ifdef MYSQLENCODE
-		if(mysql_set_character_set(&connx, QUOTE(MYSQLENCODE)) == 0)
-#endif
-		{
-			connok = true;
-		}
-		else
-		{
-			// mysql_set_character_set failed
-			mysql_close(&connx);
-		}
-	}
-	else
-	{
-		// connect failed
-		mysql_close(&connx);
-	}
-
-	if(!connok)
-		return;
-
-	CHRONO chrono;
-
-	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
-
-//	mysql_thread_init();
-
-	startChrono(chrono);
-
-	// zend_printf("SQL:%s<br/>\n", sql);
-
-	MYSQL_STMT *stmt;
-//	if((stmt = mysql_stmt_init(&(this->mysql_connx))))
-	if((stmt = mysql_stmt_init(&connx)))
-	{
-//		qp->sqlmutex->lock();
-		if(mysql_stmt_prepare(stmt, sql, strlen(sql)) == 0)
-		{
-
-			// Execute the SELECT query
-			if(mysql_stmt_execute(stmt) == 0)
-			{
-				qp->n->time_sqlQuery = stopChrono(chrono);
-
-				// Bind the result buffers for all columns before fetching them
-				MYSQL_BIND bind[7];
-				unsigned long length[7];
-				my_bool is_null[7];
-				my_bool error[7];
-				long int_result[7];
-				unsigned char sha256[65];
-				char skey[201];
-
-				memset(bind, 0, sizeof (bind));
-
-				// every field is int...
-				for(int i = 0; i < 7; i++)
-				{
-					length[i] = 0;
-					is_null[i] = true; // so each not fetched column (not listed in sql) will be null
-					error[i] = false;
-					int_result[i] = 0;
-					// INTEGER COLUMN(S)
-					bind[i].buffer_type = MYSQL_TYPE_LONG;
-					bind[i].buffer = (char *) (&int_result[i]);
-					bind[i].is_null = &is_null[i];
-					bind[i].length = &length[i];
-					bind[i].error = &error[i];
-				}
-				// ... except :
-
-				// sha256 column : 256 bits
-				memset(sha256, 0, sizeof (sha256));
-				bind[SQLFIELD_SHA256].buffer_type = MYSQL_TYPE_STRING;
-				bind[SQLFIELD_SHA256].buffer_length = 65;
-				bind[SQLFIELD_SHA256].buffer = (char *) sha256;
-
-				// skey column : 100 chars utf8
-				memset(skey, 0, sizeof (skey));
-				bind[SQLFIELD_SKEY].buffer_type = MYSQL_TYPE_STRING;
-				bind[SQLFIELD_SKEY].buffer_length = 201;
-				bind[SQLFIELD_SKEY].buffer = (char *) skey;
-
-				// Bind the result buffers
-				if(mysql_stmt_bind_result(stmt, bind) == 0)
-				{
-					bool ok_to_fetch = true;
-					// Now buffer all results to client (optional step)
-					startChrono(chrono);
-					ok_to_fetch = (mysql_stmt_store_result(stmt) == 0);
-					qp->n->time_sqlStore = stopChrono(chrono);
-
-					//					if(mutex_locked)
-					//					{
-					//						pthread_mutex_unlock(qp->sqlmutex);
-					//						mutex_locked = false;
-					//					}
-
-					// fetch results
-					if(ok_to_fetch)
-					{
-						long rid;
-						long lastrid = -1;
-
-						startChrono(chrono);
-						while(mysql_stmt_fetch(stmt) == 0)
-						{
-							rid = int_result[SQLFIELD_RID];
-
-							CANSWER *answer;
-							if((answer = new CANSWER()))
-							{
-								answer->rid = rid;
-								insert_ret = qp->n->answers.insert(answer);
-								if(insert_ret.second == false)
-								{
-									// this rid already exists
-									delete answer;
-									answer = *(insert_ret.first);
-								}
-								else
-								{
-									// n->nbranswers++;
-
-									// a new rid
-									answer->cid = int_result[SQLFIELD_CID];
-
-									if(!is_null[SQLFIELD_SHA256])
-										answer->sha2 = new CSHA(sha256);
-
-									if(!is_null[SQLFIELD_SKEY])
-									{
-										skey[length[SQLFIELD_SKEY]] = '\0';
-										switch(qp->sortMethod)
-										{
-											case SORTMETHOD_STR:
-												answer->sortkey.s = new std::string(skey);
-												break;
-											case SORTMETHOD_INT:
-#ifdef PHP_WIN32
-												answer->sortkey.l = _strtoui64(skey, NULL, 10);
-#else
-												answer->sortkey.l = atoll(skey);
-#endif
-												break;
-										}
-									}
-								}
-							}
-
-							if(!is_null[SQLFIELD_IW] && answer)
-							{
-								CHIT *hit;
-								if(hit = new CHIT(int_result[SQLFIELD_IW]))
-								{
-									if(!(answer->firsthit))
-										answer->firsthit = hit;
-									if(answer->lasthit)
-										answer->lasthit->nexthit = hit;
-									answer->lasthit = hit;
-								}
-							}
-							if(!is_null[SQLFIELD_HITSTART] && !is_null[SQLFIELD_HITLEN] && answer)
-							{
-								CSPOT *spot;
-								if(spot = new CSPOT(int_result[SQLFIELD_HITSTART], int_result[SQLFIELD_HITLEN]))
-								{
-									if(!(answer->firstspot))
-										answer->firstspot = spot;
-									if(answer->lastspot)
-										answer->lastspot->_nextspot = spot;
-									answer->lastspot = spot;
-								}
-							}
-						}
-						qp->n->time_sqlFetch = stopChrono(chrono);
-					}
-					else // store error
-					{
-						zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
-					}
-				}
-				else // bind error
-				{
-					zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
-				}
-			}
-			else // execute error
-			{
-				zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
-			}
-		}
-		else // prepare error
-		{
-			zend_printf("ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+			sprintfSQLERR(sqlerr, "ERR: line %d : %s\n%s\n", __LINE__, mysql_stmt_error(stmt), sql);
 		}
 
 		mysql_stmt_close(stmt);
 //		qp->sqlmutex->unlock();
 	}
-	mysql_close(&connx);
 //	mysql_thread_end();
 }
 
-========================================== */
