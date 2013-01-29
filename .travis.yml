@@ -1,5 +1,7 @@
+language: cpp
+
 script:
-	- phpize
-	- ./configure
-	- make
-	- sudo make install
+  - phpize 
+    && ./configure
+    && make
+    && sudo make install
