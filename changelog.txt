@@ -1,3 +1,10 @@
+1.21.0.0
+new last parameter to "phrasea_query2(...)" for stemmed words
+ex.: phrasea_query2(... , 'fr') to search on french-stemmed fulltext
+ommit or set to "" to query un-stemmed word.
+ps : available languages listed by "phraseanet_indexer --help"
+
+
 1.20.1.8
 fix : segfault when calling some phrasea_*(...) functions and connection was not set (phrasea_conn(...) was not called)
 
