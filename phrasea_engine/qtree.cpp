@@ -1085,10 +1085,10 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 										switch(pvalue[i])
 										{
 											case '0':
-												buff_and[i] = buff_xor[i] = '1';
+												buff_and[i] = '1';
 												break;
 											case '1':
-												buff_and[i] = '1';
+												buff_and[i] = buff_xor[i] = '1';
 												break;
 										}
 									}
