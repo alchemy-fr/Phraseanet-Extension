@@ -1,3 +1,13 @@
+1.21.1.0
+new function phrasea_utf8_convert_to(string s, string method) returns string
+method :
+"LC"   : lowercase
+"ND"   : no-diacritics
+"LCND" : lowercase no-diacritics
+
+1.21.0.2
+fix : query "thumbnail=0" returned always 0 answers (#1151)
+
 1.21.0.1
 fix : query on status bits was "reversed" (1 found 0 ; 0 found 1)
 
