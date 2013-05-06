@@ -38,6 +38,10 @@ SQLCONN::SQLCONN(const char *host, unsigned int port, const char *user, const ch
 	this->ukey = NULL;
 	this->connok = false;
 	this->mysql_active_result_id = 0;
+//	this->stmt_th = NULL;
+//	this->DOMThesaurus = NULL;
+//	this->thesaurus_buffer = NULL;
+//	this->XPathCtx_thesaurus = NULL;
 
 	strcpy(this->host, host);
 	strcpy(this->user, user);
@@ -61,6 +65,14 @@ SQLCONN::~SQLCONN()
 	this->close();
 	if(this->ukey)
 		EFREE(this->ukey);
+//	if(this->thesaurus_buffer)
+//		EFREE(this->thesaurus_buffer);
+//	if(this->stmt_th)
+//		mysql_stmt_close(this->stmt_th);
+//	if(this->XPathCtx_thesaurus)
+//		xmlXPathFreeContext(this->XPathCtx_thesaurus);
+//	if(this->DOMThesaurus)
+//		xmlFreeDoc(this->DOMThesaurus);
 }
 
 
@@ -279,6 +291,117 @@ const char *SQLROW::field(int n, const char *replaceNULL)
 #define SQLFIELD_HITLEN 4
 #define SQLFIELD_IW 5
 #define SQLFIELD_SHA256 6
+
+/*
+void SQLCONN::thesaurus_search(const char *term)
+{
+zend_printf("[%d] term='%s' \n", __LINE__, term);
+	if(!this->DOMThesaurus)
+	{
+zend_printf("[%d] \n", __LINE__);
+		if(!this->stmt_th)
+		{
+zend_printf("[%d] \n", __LINE__);
+			if( this->stmt_th = mysql_stmt_init((MYSQL *)(this->get_native_conn())) )
+			{
+zend_printf("[%d] \n", __LINE__);
+				char *sql = (char *)"SELECT value FROM pref WHERE prop='thesaurus'";
+				if(mysql_stmt_prepare(this->stmt_th, sql, 45) != 0)
+				{
+zend_printf("[%d] \n", __LINE__);
+					mysql_stmt_close(this->stmt_th);
+					this->stmt_th = NULL;
+				}
+			}
+		}
+zend_printf("[%d] \n", __LINE__);
+
+		if(this->thesaurus_buffer == NULL)
+		{
+			if( (this->thesaurus_buffer = (char *)(EMALLOC(this->thesaurus_buffer_size = 10000))) == NULL )
+			{
+				// malloc error
+				return;
+			}
+		}
+zend_printf("[%d] \n", __LINE__);
+
+		if(this->stmt_th)
+		{
+zend_printf("[%d] \n", __LINE__);
+			MYSQL_BIND bindo;
+			my_bool is_null = false;;
+			my_bool error = false;
+			unsigned long length=0;
+
+			memset(&bindo, 0, sizeof(bindo));
+			bindo.buffer_type   = MYSQL_TYPE_STRING;
+			bindo.buffer        = (void *)(this->thesaurus_buffer);
+			bindo.buffer_length = this->thesaurus_buffer_size;
+			bindo.is_null       = &is_null;
+			bindo.length        = &length;
+			bindo.error         = &error;
+
+			if(mysql_stmt_execute(this->stmt_th) == 0)
+			{
+zend_printf("[%d] \n", __LINE__);
+				int row_count = 0;
+
+				int ret = 0;
+
+				if(mysql_stmt_bind_result(this->stmt_th, &bindo) == 0)
+				{
+zend_printf("[%d] \n", __LINE__);
+
+					ret = mysql_stmt_fetch(this->stmt_th);
+#ifdef MYSQL_DATA_TRUNCATED
+					if(ret == MYSQL_DATA_TRUNCATED)
+						ret = 0;		//  will be catched comparing buffer sizes
+#endif
+zend_printf("[%d] l=%d bs=%d ret=%d \n", __LINE__, this->thesaurus_buffer_size, length, ret);
+					if(ret==0 && length > this->thesaurus_buffer_size+1)
+					{
+zend_printf("[%d] \n", __LINE__);
+						// buffer too small, realloc
+						EFREE(this->thesaurus_buffer);
+						if( (this->thesaurus_buffer = (char *)EMALLOC(this->thesaurus_buffer_size = length+1)) )
+						{
+zend_printf("[%d] \n", __LINE__);
+							bindo.length        = 0;
+							bindo.buffer        = (void *)(this->thesaurus_buffer);
+							bindo.buffer_length = this->thesaurus_buffer_size;
+							if(mysql_stmt_fetch_column(this->stmt_th, &bindo, 0, 0) != 0)
+								ret = -1;
+						}
+						else
+						{
+							ret = -1;
+						}
+					}
+					if(ret == 0)
+					{
+zend_printf("[%d] \n", __LINE__);
+zend_printf("THESAURUS:\n%s\n", this->thesaurus_buffer);
+
+						this->DOMThesaurus = xmlParseMemory(this->thesaurus_buffer, length);
+						if(this->DOMThesaurus != NULL)
+						{
+							// Create xpath evaluation context
+							this->XPathCtx_thesaurus = xmlXPathNewContext(this->DOMThesaurus);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if(this->XPathCtx_thesaurus)
+	{
+//		"/thesaurus//sy"
+//		xmlXPathEvalExpression((const xmlChar*)"/record/description/*", this->XPathCtx_thesaurus);
+	}
+}
+*/
 
 
 // send a 'leaf' query to a databox

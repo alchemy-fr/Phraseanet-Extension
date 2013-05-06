@@ -29,10 +29,11 @@ PHP_FUNCTION(phrasea_create_session);
 PHP_FUNCTION(phrasea_open_session);
 PHP_FUNCTION(phrasea_clear_cache);
 PHP_FUNCTION(phrasea_close_session);
-PHP_FUNCTION(phrasea_query2); 
+PHP_FUNCTION(phrasea_query2);
 PHP_FUNCTION(phrasea_fetch_results);
 PHP_FUNCTION(phrasea_conn);
 PHP_FUNCTION(phrasea_info);
+PHP_FUNCTION(phrasea_utf8_convert_to);
 
 extern zend_module_entry phrasea2_module_entry;
 #define phpext_phrasea2_ptr &phrasea2_module_entry
@@ -40,5 +41,5 @@ extern zend_module_entry phrasea2_module_entry;
 
 // extern ZEND_DECLARE_MODULE_GLOBALS(phrasea2)
 ZEND_EXTERN_MODULE_GLOBALS(phrasea2)
-	
+
 #endif	/* PHP_PHRASEA2_H */

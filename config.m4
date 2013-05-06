@@ -53,7 +53,40 @@ if test "$PHP_PHRASEA2" != "no"; then
         LDFLAGS="${LDFLAGS} $LBASE"
     fi
 
+
+
+
+
+#    # Determine XML2 include path
+#    AC_MSG_CHECKING(for libxml/xmlmemory.h)
+#
+#    # Can we include headers using system include dirs?
+#    AC_TRY_COMPILE([#include <libxml/xmlmemory.h>], [int a = 1;],
+#        XML2_INCLUDE=" ",
+#        XML2_INCLUDE=
+#    )
+#
+#    # Hunt through several possible directories to find the includes for libxml2
+#    if test "x$XML2_INCLUDE" = "x"; then
+#        old_CPPFLAGS="$CPPFLAGS"
+#        for i in $xml2_include_dir /usr/include /usr/local/include /usr/include/libxml2 /usr/local/include/libxml2 ; do
+#            CPPFLAGS="$old_CPPFLAGS -I$i"
+#            AC_TRY_COMPILE([#include <libxml/xmlmemory.h>], [int a = 1;],
+#                XML2_INCLUDE="-I$i",
+#                XML2_INCLUDE=
+#            )
+#            if test "x$XML2_INCLUDE" != "x"; then
+#                break;
+#            fi
+#        done
+#        CPPFLAGS="$old_CPPFLAGS $XML2_INCLUDE"
+#    fi
+#    AC_MSG_RESULT([$XML2_INCLUDE])
+
+
+
     AC_CHECK_LIB([mysqlclient], [my_init], [LIBMYSQL="OK"], [LIBMYSQL="BAD"])
+#    AC_CHECK_LIB([xml2], [xmlInitParser], [LIBXML="OK"], [LIBXML="BAD"])
 
     STEF=`ls libstemmer_c/src_c/stem_UTF_8_*.c`
 
@@ -73,5 +106,6 @@ if test "$PHP_PHRASEA2" != "no"; then
                         phrasea_engine/sql.cpp \
                         phrasea_engine/cquerytree2parm.cpp \
                         phrasea_engine/mutex.cpp \
+                        phrasea_engine/unicode.cpp \
                         , $ext_shared, [], -DCOMPILE_DL_PHRASEA2 -DMYSQLENCODE=utf8)
 fi
