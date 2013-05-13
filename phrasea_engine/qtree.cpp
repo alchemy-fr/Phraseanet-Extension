@@ -1042,32 +1042,32 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									if(*(qp->psortField))
 									{
 										// ===== OK =====
-										sprintfSQL(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												", prop.value AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
-												" FROM (%s LEFT JOIN subdef USING(record_id))"
-												" INNER JOIN prop USING(record_id)"
-												" WHERE %s AND subdef.name='%s' AND prop.name='%s'"
+												" FROM (%s LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s'))"
+												" INNER JOIN prop ON(prop.record_id=record.record_id)"
+												" WHERE %s AND prop.name='%s'"
 												, qp->sqltrec
-												, w
 												, pfield
+												, w
 												, *(qp->psortField)
 												);
 									}
 									else
 									{
 										// ===== OK =====
-										sprintfSQL(sql, "SELECT record_id, record.coll_id"
+										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												// ", NULL AS skey"
 												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s"
-												" LEFT JOIN subdef USING(record_id)"
-												" WHERE %s AND subdef.name='%s'" // ORDER BY record_id DESC"
+												" LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s')"
+												" WHERE %s" // ORDER BY record_id DESC"
 												, qp->sqltrec
-												, w
 												, pfield
+												, w
 												);
 									}
 								}
@@ -1217,6 +1217,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 							KEYWORD *k;
 							for(k = qp->n->content.boperator.r->content.multileaf.firstkeyword; k; k = k->nextkeyword)
 							{
+//qp->sqlconn->thesaurus_search(k->kword);
 								l = strlen(k->kword);
 								l2 += l; // xxx
 								k->l_esc = qp->sqlconn->escape_string(k->kword, strlen(k->kword));	// needed
@@ -1346,7 +1347,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 												);
 									}
 								}
-
+// zend_printf("SQL2 : %s \n", sql);
 								qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 							}
 							else
