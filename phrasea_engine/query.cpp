@@ -493,6 +493,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 												current_cid = answer->cid;
 											}
 
+//zend_printf(" [[rid %d]]\n", answer->rid);
 											panswer->rid = answer->rid;
 											panswer->bid = current_bid;
 											panswer->spots_index = spot_index;
@@ -500,6 +501,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 											spot_index += answer->nspots;
 											for(spot = answer->firstspot; spot; spot = spot->_nextspot)
 											{
+//zend_printf("   {{%d,%d}}\n", spot->start, spot->len);
 												pspot->start = spot->start;
 												pspot->len = spot->len;
 												pspot++;
@@ -523,6 +525,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 												current_cid = answer->cid;
 											}
 
+//zend_printf(" [[rid %d]]\n", answer->rid);
 											panswer->rid = answer->rid;
 											panswer->bid = current_bid;
 											panswer->spots_index = spot_index;
@@ -530,6 +533,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 											spot_index += answer->nspots;
 											for(spot = answer->firstspot; spot; spot = spot->_nextspot)
 											{
+//zend_printf("   {{%d,%d}}\n", spot->start, spot->len);
 												pspot->start = spot->start;
 												pspot->len = spot->len;
 												pspot++;
