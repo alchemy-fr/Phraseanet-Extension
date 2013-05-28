@@ -11,7 +11,7 @@
 #define PH_INT32 int
 #define PH_INT64 long long
 #define PH_ATOI64(s)	atoll(s)
-#else
+#else 
 #ifdef WIN32	// windows
 #define PH_INT32 int
 #define PH_INT64 __int64
@@ -211,28 +211,6 @@ public:
 	CHIT *firsthit, *lasthit;
 	CSPOT *firstspot, *lastspot;
 	int nspots;
-
-	void addSpot(int start, int len)
-	{
-		CSPOT *c;
-		for(c=this->firstspot; c; c=c->_nextspot)
-		{
-			if(c->start==start && c->len==len)
-			{
-				// already on list, forget
-				return;
-			}
-		}
-		// add to list
-		if( (c = new CSPOT(start, len)) )
-		{
-			if(!this->firstspot)
-				this->firstspot = c;
-			else
-				this->lastspot->_nextspot = c;
-			this->lastspot = c;
-		}
-	}
 
 	void freeHits()
 	{

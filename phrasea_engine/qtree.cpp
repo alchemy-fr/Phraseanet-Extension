@@ -261,16 +261,18 @@ void doOperatorAND(CNODE *n)
 				al->sha2 = ar->sha2;
 				ar->sha2 = NULL; // to prevent deletion of ar to delete sha !
 			}
-			// insert spots of 'ar' at the end of 'al', deleting 'ar' spots
-			CSPOT *cspot;
-			while( (cspot = ar->firstspot) )
+			// attach spots of 'ar' at the end of 'al'
+			if(ar->firstspot)
 			{
-				al->addSpot(cspot->start, cspot->len);
-				ar->firstspot = cspot->_nextspot;
-				delete cspot;
+				if(al->lastspot)
+					al->lastspot->_nextspot = ar->firstspot;
+				else
+					al->firstspot = ar->firstspot;
+				al->lastspot = ar->lastspot;
 			}
-			// ar is empty
-			ar->lastspot = NULL;
+
+			// detach old spots from 'ar' to prevent deletion
+			ar->firstspot = ar->lastspot = NULL;
 
 			// a 'AND' has no 'hits'
 			al->freeHits();
@@ -320,17 +322,17 @@ void doOperatorOR(CNODE *n)
 		else
 		{
 			// here al.rid == ar.rid, we will keep al to insert into result, and delete ar
-
-			// insert spots of 'ar' at the end of 'al', deleting 'ar' spots
-			CSPOT *cspot;
-			while( (cspot = ar->firstspot) )
+			// attach spots of 'ar' at the end of 'al'
+			if(ar->firstspot)
 			{
-				al->addSpot(cspot->start, cspot->len);
-				ar->firstspot = cspot->_nextspot;
-				delete cspot;
+				if(al->lastspot)
+					al->lastspot->_nextspot = ar->firstspot;
+				else
+					al->firstspot = ar->firstspot;
+				al->lastspot = ar->lastspot;
 			}
-			// 'ar' is empty
-			ar->lastspot = NULL;
+			// detach old spots from 'ar' to prevent deletion
+			ar->firstspot = ar->lastspot = NULL;
 
 			// attach hits of 'ar' at the end of 'al'
 			if(ar->firsthit)
@@ -429,20 +431,17 @@ void doOperatorPROX(CNODE *n)
 				al->sha2 = ar->sha2;
 				ar->sha2 = NULL; // to prevent deletion of ar to delete sha !
 			}
-			// insert spots of 'ar' at the end of 'al', deleting 'ar' spots
-			CSPOT *cspot;
-			while( (cspot = ar->firstspot) )
+			// attach spots of 'ar' at the end of 'al'
+			if(ar->firstspot)
 			{
-				al->addSpot(cspot->start, cspot->len);
-				ar->firstspot = cspot->_nextspot;
-				delete cspot;
+				if(al->lastspot)
+					al->lastspot->_nextspot = ar->firstspot;
+				else
+					al->firstspot = ar->firstspot;
+				al->lastspot = ar->lastspot;
 			}
-			// 'ar' is empty
-			ar->lastspot = NULL;
-//for(CSPOT *cc=al->firstspot; cc; cc=cc->_nextspot)
-//{
-//	zend_printf("spot(%d-%d)\n", cc->start, cc->len);
-//}
+			// detach old spots from 'ar' to prevent deletion
+			ar->firstspot = ar->lastspot = NULL;
 
 			// keep a ptr on hits of 'al'
 			hitl = al->firsthit;
@@ -454,14 +453,14 @@ void doOperatorPROX(CNODE *n)
 			{
 				for(hitr = ar->firsthit; hitr; hitr = hitr->nexthit)
 				{
-//zend_printf("al->rid=%d, ar->rid=%d, hitl=[s:%d, e:%d], hitr=[s:%d, e:%d]\n", al->rid, ar->rid, hitl->iws, hitl->iwe, hitr->iws, hitr->iwe);
+// zend_printf("al->rid=%d, ar->rid=%d, hitl=[s:%d, e:%d], hitr=[s:%d, e:%d]\n", al->rid, ar->rid, hitl->iws, hitl->iwe, hitr->iws, hitr->iwe);
 					if(n->type == PHRASEA_OP_BEFORE || n->type == PHRASEA_OP_NEAR)
 					{
 						prox0 = hitr->iws - hitl->iwe;
-//zend_printf("  (%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
-						if(prox0 >= 1 && prox0 <= prox + 1)
+// zend_printf("(%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
+						if(prox0 >= 0 && prox0 <= prox + 1)
 						{
-//zend_printf("    new CHIT(%d, %d)\n", hitl->iws, hitr->iwe);
+// zend_printf("new CHIT(%d, %d)\n", hitl->iws, hitr->iwe);
 							// if near, allocate a new hit for 'al'
 							if((hit = new CHIT(hitl->iws, hitr->iwe)))
 							{
@@ -476,8 +475,8 @@ void doOperatorPROX(CNODE *n)
 					if(n->type == PHRASEA_OP_AFTER || n->type == PHRASEA_OP_NEAR)
 					{
 						prox0 = hitl->iws - hitr->iwe;
-// zend_printf("  (%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
-						if(prox0 >= 1 && prox0 <= prox + 1)
+// zend_printf("(%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
+						if(prox0 >= 0 && prox0 <= prox + 1)
 						{
 							// if near, allocate a new hit for 'al'
 							if((hit = new CHIT(hitr->iwe, hitl->iws)))
