@@ -8,6 +8,8 @@
 
 #include "mutex.h"
 #include "thread.h"
+#include "sql.h"
+
 
 CNODE *qtree2tree(zval **root, int depth); // in qtree.cpp
 void freetree(CNODE *n); // in qtree.cpp
@@ -411,14 +413,14 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 								if(sortmethod == SORTMETHOD_STR)
 								{
 									if(sortorder >= 0)
-										pmset = new std::multiset < PCANSWER, bool(*)(PCANSWER, PCANSWER)>(pcanswercomp_str_asc);
+										pmset = new std::multiset<PCANSWER, bool(*)(PCANSWER, PCANSWER)>(pcanswercomp_str_asc);
 									else
 										pmset = new std::multiset<PCANSWER, bool(*)(PCANSWER, PCANSWER)>(pcanswercomp_str_desc);
 								}
 								else
 								{
 									if(sortorder >= 0)
-										pmset = new std::multiset < PCANSWER, bool(*)(PCANSWER, PCANSWER)>(pcanswercomp_int_asc);
+										pmset = new std::multiset<PCANSWER, bool(*)(PCANSWER, PCANSWER)>(pcanswercomp_int_asc);
 									else
 										pmset = new std::multiset<PCANSWER, bool(*)(PCANSWER, PCANSWER)>(pcanswercomp_int_desc);
 								}
@@ -432,7 +434,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 							CHRONO time_writeCache;
 							startChrono(time_writeCache);
 
-							if(n_answers > 0)
+							if(true)	// n_answers > 0)
 							{
 								int answer_binsize, spot_binsize;
 								CACHE_ANSWER *answer_binbuff = NULL;
@@ -471,7 +473,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 									EFREE(fname);
 								}
 
-								if((answer_binbuff = (CACHE_ANSWER *) EMALLOC(answer_binsize)) && (n_spots == 0 || (spot_binbuff = (CACHE_SPOT *) EMALLOC(spot_binsize))))
+								if((answer_binsize == 0 || (answer_binbuff = (CACHE_ANSWER *) EMALLOC(answer_binsize))) && (spot_binsize == 0 || (spot_binbuff = (CACHE_SPOT *) EMALLOC(spot_binsize))))
 								{
 									CACHE_ANSWER *panswer = answer_binbuff;
 									CACHE_SPOT *pspot = spot_binbuff;
