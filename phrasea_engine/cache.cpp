@@ -1,6 +1,7 @@
 #include "base_header.h"
 
-#include "../php_phrasea2/php_phrasea2.h"
+
+#include "cache.h"
 
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -556,10 +557,8 @@ SQLCONN *CACHE_SESSION::connect(long base_id)
 	{
 		if(cb->conn)
 		{
-// ftrace("LINE %d, conn=%p\n", __LINE__, cb->conn);
 			return(cb->conn);
 		}
-// ftrace("LINE %d, dbname=%s\n", __LINE__, cb->dbname);
 		return(cb->conn = new SQLCONN(cb->host, cb->port, cb->user, cb->passwd, cb->dbname));
 	}
 	return(NULL);

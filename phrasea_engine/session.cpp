@@ -1,5 +1,6 @@
 #include "base_header.h"
 
+
 #include "../php_phrasea2/php_phrasea2.h"
 
 ZEND_FUNCTION(phrasea_clear_cache)
@@ -22,10 +23,10 @@ ZEND_FUNCTION(phrasea_clear_cache)
 	{
 		// we need conn !
 		//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
-		RETURN_FALSE;
+		RETVAL_FALSE;
 	}
 
-	ZVAL_BOOL(return_value, FALSE);
+	RETVAL_FALSE;
 
 	if(sesid != 0)
 	{
@@ -63,7 +64,7 @@ ZEND_FUNCTION(phrasea_clear_cache)
 
 						//PHRASEA2_G(global_session)->serialize_php(return_value, false); // false : do NOT include offlines and not registered
 
-						ZVAL_BOOL(return_value, TRUE);
+						RETVAL_TRUE;
 					}
 				}
 			}
@@ -95,7 +96,7 @@ ZEND_FUNCTION(phrasea_create_session)
 		RETURN_FALSE;
 	}
 
-	ZVAL_BOOL(return_value, FALSE);
+	RETVAL_TRUE;
 
 	long sesid = -1;
 	char sql[96 + 20 + 1];
@@ -230,7 +231,7 @@ ZEND_FUNCTION(phrasea_open_session)
 		RETURN_FALSE;
 	}
 
-	ZVAL_BOOL(return_value, FALSE);
+	RETVAL_FALSE;
 
 	char sql[65 + 20 + 12 + 20 + 1];
 	sprintf(sql, "UPDATE cache SET nact=nact+1, lastaccess=NOW() WHERE session_id=%li AND usr_id=%li", sesid, usrid);
@@ -280,7 +281,7 @@ ZEND_FUNCTION(phrasea_close_session)
 		RETURN_FALSE;
 	}
 
-	ZVAL_BOOL(return_value, FALSE);
+	RETVAL_FALSE;
 
 	char sql[36 + 20 + 1];
 	// delete session from cache
@@ -304,7 +305,7 @@ ZEND_FUNCTION(phrasea_close_session)
 				remove(fname);
 				EFREE(fname);
 			}
-			ZVAL_BOOL(return_value, TRUE);
+			RETVAL_TRUE;
 		}
 	}
 	epublisher->close();

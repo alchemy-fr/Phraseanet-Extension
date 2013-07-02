@@ -1,6 +1,7 @@
-// #include "base_header.h"
-#include "php.h"
-#define RAMLOG "/home/gaulier/ramlog.txt"
+#include "base_header.h"
+
+
+#define RAMLOG "/tmp/ramlog.txt"
 #define K (sizeof(int))
 
 int allocated = 0;
@@ -10,7 +11,7 @@ void tracelog(const char *s, const char *file, int line)
    FILE *fp;
 	if(fp = fopen(RAMLOG, "a"))
 	{
-//		fprintf(fp, "%s (%i) : %s\n", file, line, s);
+fprintf(fp, "%s (%i) : %s\n", file, line, s);
 		fclose(fp);
 	}
 }
@@ -27,7 +28,7 @@ void *my_emalloc(int s, const char *file, int line)
 	//	zend_printf("(%i):S=%i%s   p=%i  p2=%i\n", s, allocated, p?"":" ERROR ", p, p2);
 	if(fp = fopen(RAMLOG, "a"))
 	{
-//		fprintf(fp, "%s (%i)	+%i	S=%i%s   p=0x%p  p2=0x%p\n", file, line, s, allocated, p?"":" ERROR ", p, p2);
+fprintf(fp, "%s (%i)\t+%-8d\tS=%-8d\tp=%p\tp2=%p\n", file, line, s, allocated, p, p2);
 		//fprintf(fp, "(%i):S=%i%s   p=0x%p  p2=0x%p\n", s, allocated, p?"":" ERROR ", p, p2);
 		fclose(fp);
 	}
@@ -46,34 +47,34 @@ void my_efree(void *p2, const char *file, int line)
 		//		zend_printf("efree(%i):S=%i   p2=%i  p=%i\n", s, allocated, p2, p);
 		if(fp = fopen(RAMLOG, "a"))
 		{
-//			fprintf(fp, "%s (%i)	-%i	S=%i	p2=0x%p	p=0x%p\n", file, line, s, allocated, p2, p);
+fprintf(fp, "%s (%i)\t-%-8d\tS=%-8d\tp=%p\tp2=%p\n", file, line, s, allocated, p, p2);
 			//fprintf(fp, "efree(%i):S=%i   p2=0x%p  p=0x%p\n", s, allocated, p2, p);
 			fclose(fp);
 		}
 		efree(p);
-		tracelog("freeded", file, line);
+//		tracelog("freeded", file, line);
 	}
 	else
 	{
 		if(fp = fopen(RAMLOG, "a"))
 		{
-//			fprintf(fp, "%s (%i)	efree(ERROR)\n", file, line);
+fprintf(fp, "%s (%i)\tefree(ERROR)\n", file, line);
 			//fprintf(fp, "efree(ERROR)\n");
 			fclose(fp);
 		}
 	}
 }
 
-char *my_estrdup(char *s) //, const char *file, int line)
-{
-  char *p;
-  int l=strlen(s)+1;
-	if(p = (char *)emalloc(l))
-	{
-		strcpy(p, s);
-	}
-	return(p);
-}
+//char *my_estrdup(char *s) //, const char *file, int line)
+//{
+//  char *p;
+//  int l=strlen(s)+1;
+//	if(p = (char *)emalloc(l))
+//	{
+//		strcpy(p, s);
+//	}
+//	return(p);
+//}
 
 
 /*

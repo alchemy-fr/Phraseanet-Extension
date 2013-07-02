@@ -1,11 +1,6 @@
 #ifndef PHRASEA_TYPES_H
 #define PHRASEA_TYPES_H 1
-/*
-#include <set>
-#include <string>
 
-#include "sql.h"
- */
 
 #ifdef __ppc__	// os x
 #define PH_INT32 int
@@ -21,15 +16,6 @@
 #define PH_INT64 __int64
 #define PH_ATOI64(s)	_atoi64(s)
 #endif
-#endif
-
-
-#ifndef true
-#define true TRUE
-#endif
-
-#ifndef false
-#define false FALSE
 #endif
 
 #ifndef NONULLSTRING
@@ -104,13 +90,7 @@ public:
 	int start;
 	int len;
 	CSPOT *_nextspot;
-
-	CSPOT(int start, int len)
-	{
-		this->_nextspot = NULL;
-		this->start = start;
-		this->len = len;
-	}
+	CSPOT(int start, int len);
 };
 
 class CHIT
@@ -119,78 +99,23 @@ public:
 	int iws;
 	int iwe;
 	CHIT *nexthit;
-
-	CHIT(int iw)
-	{
-		this->nexthit = NULL;
-		this->iws = this->iwe = iw;
-	}
-
-	CHIT(int iws, int iwe)
-	{
-		this->nexthit = NULL;
-		this->iws = iws;
-		this->iwe = iwe;
-	}
+	CHIT(int iw);
+	CHIT(int iws, int iwe);
 };
 
 class CSHA
 {
 public:
 	unsigned char _v[65];
-public:
-
-	CSHA()
-	{
-		memset(this->_v, 0, sizeof (this->_v));
-	}
-
-	CSHA(const unsigned char *v)
-	{
-		memset(this->_v, 0, sizeof (this->_v));
-		if(v)
-		{
-			unsigned char *p = this->_v;
-			for(register int i = 0; i < 64 && *v; i++)
-				*p++ = *v++;
-			*p = '\0';
-		}
-	}
-
-	bool operator==(const CSHA &rhs)
-	{
-		return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) == 0);
-	}
-
-	bool operator!=(const CSHA &rhs)
-	{
-		return (!(*this == rhs));
-	}
-
-	operator const char *()
-	{
-		return ((const char *) (this->_v));
-	}
-
-	bool operator<(const CSHA &rhs)
-	{
-		return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) < 0);
-	}
-
-	bool operator<=(const CSHA &rhs)
-	{
-		return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) <= 0);
-	}
-
-	bool operator>(const CSHA &rhs)
-	{
-		return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) > 0);
-	}
-
-	bool operator>=(const CSHA &rhs)
-	{
-		return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) >= 0);
-	}
+	CSHA();
+	CSHA(const unsigned char *v);
+	bool operator==(const CSHA &rhs);
+	bool operator!=(const CSHA &rhs);
+	operator const char *() const;
+	bool operator<(const CSHA &rhs);
+	bool operator<=(const CSHA &rhs);
+	bool operator>(const CSHA &rhs);
+	bool operator>=(const CSHA &rhs);
 };
 
 class CANSWER
@@ -212,115 +137,19 @@ public:
 	CSPOT *firstspot, *lastspot;
 	int nspots;
 
-	void addSpot(int start, int len)
-	{
-		CSPOT *c;
-		for(c=this->firstspot; c; c=c->_nextspot)
-		{
-			if(c->start==start && c->len==len)
-			{
-				// already on list, forget
-				return;
-			}
-		}
-		// add to list
-		if( (c = new CSPOT(start, len)) )
-		{
-			if(!this->firstspot)
-				this->firstspot = c;
-			else
-				this->lastspot->_nextspot = c;
-			this->lastspot = c;
-		}
-	}
-
-	void freeHits()
-	{
-		CHIT *h;
-		while(this->firsthit)
-		{
-			h = this->firsthit->nexthit;
-			delete(this->firsthit);
-			this->firsthit = h;
-		}
-		this->lasthit = NULL;
-	}
-
-	CANSWER()
-	{
-		this->sha2 = NULL;
-		this->sortkey.s = NULL;
-		this->firsthit = this->lasthit = NULL;
-		this->firstspot = this->lastspot = NULL;
-		//zend_printf("new CANSWER @=%p (sz=%d)\n", this, sizeof(CANSWER));
-	}
-
-	~CANSWER()
-	{
-		if(this->sha2)
-			delete(this->sha2);
-		if(this->sortkey.s)
-			delete(this->sortkey.s);
-		this->freeHits();
-		CSPOT *s;
-		while(this->firstspot)
-		{
-			s = this->firstspot->_nextspot;
-			delete(this->firstspot);
-			this->firstspot = s;
-		}
-	}
+	CANSWER();
+	~CANSWER();
+	void addSpot(int start, int len);
+	void freeHits();
 	//		void printSpots()
-	//		{
-	//			zend_printf("@%p : rid=%d , firsthit=%p , lasthit=%p\n\tSPOTS :", this, this->rid, this->firsthit, this->lasthit);
-	//			for(CSPOT *s=this->firstspot; s; s=s->_nextspot)
-	//				zend_printf(" [%p: %d, %d -&gt;%p]", s, s->start, s->len, s->_nextspot);
-	//			zend_printf("\n\tHITS :");
-	//			for(CHIT *h=this->firsthit; h; h=h->nexthit)
-	//				zend_printf(" [%p: %d, %d -&gt;%p]", h, h->iws, h->iwe, h->nexthit);
-	//			zend_printf("\n");
-	//		}
 };
 typedef CANSWER *PCANSWER;
 
 class PCANSWERCOMPRID_DESC
 {
 public:
-
-	bool operator() (const PCANSWER& lhs, const PCANSWER& rhs) const
-	{
-		return lhs->rid > rhs->rid;
-	}
+	bool operator() (const PCANSWER& lhs, const PCANSWER& rhs) const;
 };
-
-/*
-class PCANSWERCOMP_INT:PCANSWERCOMP
-{
-	public:
-		bool operator() (const PCANSWER lhs, const PCANSWER rhs) const
-		{
-			return(lhs->sortkey.l > rhs->sortkey.l);
-		}
-};
-
-class PCANSWERCOMP_STR:PCANSWERCOMP
-{
-	public:
-		bool operator() (const PCANSWER lhs, const PCANSWER rhs) const
-		{
-			return( (lhs->sortkey.s->compare(*(rhs->sortkey.s))) < 0 );
-		}
-};
-
-class PCANSWERCOMP_SHA:PCANSWERCOMP
-{
-	public:
-		bool operator() (const PCANSWER lhs, const PCANSWER rhs) const
-		{
-			return( lhs->sha2 < rhs->sha2 );
-		}
-};
- */
 
 
 typedef struct keyword
@@ -335,31 +164,16 @@ KEYWORD;
 
 class CNODE
 {
-private:
-	;
 public:
-
-	CNODE(int type)
-	{
-		this->type = type;
-		// this->nbranswers = 0;
-		this->nleaf = 0;
-		this->isempty = FALSE;
-		this->time_C = -1;
-		this->time_sqlQuery = this->time_sqlStore = this->time_sqlFetch = -1;
-	}
-
 	int type;
 	bool isempty;
 	std::set<PCANSWER, PCANSWERCOMPRID_DESC> answers;
-	// int nbranswers;
 	int nleaf;
 	double time_C;
 	double time_sqlQuery, time_sqlStore, time_sqlFetch;
 
 	union
 	{
-
 		struct
 		{
 			int v;
@@ -385,11 +199,12 @@ public:
 		} voperator;
 	}
 	content;
+	CNODE(int type);
 };
 
 
 
-// les structures 'calqu?es' des donn?es en cache
+// les structures 'calquees' des donnees en cache
 
 typedef struct cache_spot
 {
@@ -407,12 +222,11 @@ typedef struct cache_answer
 }
 CACHE_ANSWER;
 
-// impl?mentation d'une resource "phrasea_connection" : en fait une connexion ? pg ou mysql
+// implementation d'une resource "phrasea_connection" : en fait une connexion a mysql
 // http://groups.google.fr/groups?q=zend_register_list_destructors_ex+persistent&hl=fr&lr=&ie=UTF-8&selm=cvshelly1039456453%40cvsserver&rnum=8
 
 typedef struct _php_phrasea_conn
 {
-
 	union
 	{
 		MYSQL mysql_conn;

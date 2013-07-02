@@ -16,9 +16,6 @@
 #include "phrasea_types.h"	// define NODE
 #include "cquerytree2parm.h"
 
-// void phrasea_query(char *sql, Cquerytree2Parm *qp);
-
-
 class SQLCONN
 {
 	public:

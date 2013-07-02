@@ -44,7 +44,6 @@
 #include "php_phrasea2.h"
 
 #include "../phrasea_engine/trace_memory.h"
-#include "../phrasea_engine/ftrace.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(phrasea2)
 
@@ -149,8 +148,6 @@ PHP_MINIT_FUNCTION(phrasea2)
 #endif
 #endif
 	mysql_library_init(0, NULL, NULL);
-//	char *bug1 = (char*)(malloc(666));
-//	char *bug2 = (char*)(EMALLOC(333));
 	return SUCCESS;
 }
 // -----------------------------------------------------------------------------
@@ -264,10 +261,10 @@ PHP_FUNCTION(phrasea_info)
 	SQLCONN *epublisher = NULL;
 
 	array_init(return_value);
-	add_assoc_string(return_value, (char *) "version", (char *)QUOTE(PHDOTVERSION), TRUE);
-	add_assoc_string(return_value, (char *) "mysql_client", (char *) (mysql_get_client_info()), TRUE);
+	add_assoc_string(return_value, (char *) "version", (char *)QUOTE(PHDOTVERSION), true);
+	add_assoc_string(return_value, (char *) "mysql_client", (char *) (mysql_get_client_info()), true);
 	add_assoc_bool(return_value, (char *) "mysql_thread_safe", mysql_thread_safe());
-	add_assoc_string(return_value, (char *) "temp_dir", PHRASEA2_G(tempPath), TRUE);
+	add_assoc_string(return_value, (char *) "temp_dir", PHRASEA2_G(tempPath), true);
 
 	sprintf(fname, "%s_test.bin", PHRASEA2_G(tempPath));
 	if((fp_test = fopen(fname, "ab")))
@@ -287,18 +284,18 @@ PHP_FUNCTION(phrasea_info)
 		if(epublisher->connect())
 		{
 			epublisher->close();
-			add_assoc_bool(return_value, (char *) "cnx", TRUE);
-			add_assoc_string(return_value, (char *) "cnx_ukey", epublisher->ukey, TRUE);
+			add_assoc_bool(return_value, (char *) "cnx", true);
+			add_assoc_string(return_value, (char *) "cnx_ukey", epublisher->ukey, true);
 		}
 		else
 		{
-			add_assoc_bool(return_value, (char *) "cnx", TRUE);
-			add_assoc_bool(return_value, (char *) "cnx_ukey", FALSE);
+			add_assoc_bool(return_value, (char *) "cnx", true);
+			add_assoc_bool(return_value, (char *) "cnx_ukey", false);
 		}
 	}
 	else
 	{
-		add_assoc_bool(return_value, (char *) "cnx", FALSE);
+		add_assoc_bool(return_value, (char *) "cnx", false);
 	}
 }
 
