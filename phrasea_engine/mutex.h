@@ -7,8 +7,6 @@
 #include <pthread.h>
 #endif
 
-// #include <stdio.h>
-
 class CMutex
 {
 	public:

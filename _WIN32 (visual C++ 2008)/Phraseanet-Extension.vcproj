@@ -222,109 +222,6 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="php5.5-201301221230|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops;.\custom_props.vsprops"
-			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-				CommandLine="rem psservice stop Apache2.2"
-				ExcludedFromBuild="false"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-				PreprocessorDefinitions="NDEBUG"
-				MkTypLibCompatible="true"
-				SuppressStartupBanner="true"
-				TargetEnvironment="1"
-				TypeLibraryName="Release_TS/phrasea2.tlb"
-				HeaderFileName=""
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="&quot;..\..\Win32\required\php5.5-201301221230&quot;;&quot;..\..\Win32\required\php5.5-201301221230\main&quot;;&quot;..\..\Win32\required\\php5.5-201301221230\Zend&quot;;&quot;..\..\Win32\required\\php5.5-201301221230\TSRM&quot;;&quot;..\..\Win32\required\mysql-5.5.28-win32\include&quot;"
-				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS;TRACE_ERAM=0;_USE_32BIT_TIME_T;ZEND_DEBUG=0;ZTS;PHRASEA2_EXPORTS;COMPILE_DL_PHRASEA2;HAVE_PHRSEA2=1;WIN32;_WINDOWS;_USRDLL;ZEND_WIN32;PHP_WIN32;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION);MYSQLENCODE=utf8"
-				IgnoreStandardIncludePath="false"
-				StringPooling="true"
-				RuntimeLibrary="2"
-				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile="$(OutDir)/phrasea2.pch"
-				AssemblerListingLocation="$(OutDir)/tmp/"
-				ObjectFile="$(OutDir)/tmp/"
-				ProgramDataBaseFileName="$(OutDir)/tmp/"
-				WarningLevel="3"
-				SuppressStartupBanner="false"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG"
-				Culture="0"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				AdditionalDependencies="libmySQL.lib php5ts.lib"
-				ShowProgress="0"
-				OutputFile="$(OutDir)/php_phrasea2_$(ConfigurationName)_$(PHDOTVERSION).dll"
-				Version="$(PHDOTVERSION)"
-				LinkIncremental="1"
-				AdditionalLibraryDirectories="&quot;..\..\Win32\required\php-5.5.0-Win32-VC9-x86\dev&quot;;&quot;..\..\Win32\required\mysql-5.5.28-win32\lib&quot;"
-				GenerateManifest="false"
-				IgnoreAllDefaultLibraries="false"
-				ProgramDatabaseFile="$(OutDir)/php_mysql.pdb"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
-				ImportLibrary=".\$(OutDir)/php_phrasea2.lib"
-				TargetMachine="1"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-				SuppressStartupBanner="true"
-				OutputFile="$(OutDir)/phrasea2.bsc"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-				Description="copy de la dll dans php"
-				CommandLine="copy &quot;$(OutDir)\$(TargetFileName)&quot; &quot;c:\program files (x86)\php\ext\php_phrasea2.dll&quot;&#x0D;&#x0A;&#x0D;&#x0A;rem psservice start Apache2.2&#x0D;&#x0A;"
-			/>
-		</Configuration>
-		<Configuration
 			Name="Release_TS_php-5.4.11_win32|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
@@ -487,17 +384,6 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="php5.5-201301221230|Win32"
-					>
-					<Tool
-						Name="VCResourceCompilerTool"
-						PreprocessorDefinitions="NDEBUG;PHVERSION=$(PHVERSION);PHDOTVERSION=$(PHDOTVERSION)"
-						Culture="0"
-						AdditionalIncludeDirectories="&quot;C:\Program Files\Microsoft Visual Studio\VC98\MFC\Include&quot;;./res"
-						ShowProgress="true"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Release_TS_php-5.4.11_win32|Win32"
 					>
 					<Tool
@@ -533,11 +419,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\phrasea_engine\ftrace.h"
+					RelativePath="..\phrasea_engine\mutex.h"
 					>
 				</File>
 				<File
-					RelativePath="..\phrasea_engine\mutex.h"
+					RelativePath="..\phrasea_engine\mysql_fixed.h"
 					>
 				</File>
 				<File
@@ -553,10 +439,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\phrasea_engine\phrasea_utils_win.h"
-					>
-				</File>
-				<File
 					RelativePath="..\phrasea_engine\sql.h"
 					>
 				</File>
@@ -569,7 +451,6 @@
 					>
 					<FileConfiguration
 						Name="Release_TS_php-5.4.7_win32|Win32"
-						ExcludedFromBuild="true"
 						>
 						<Tool
 							Name="VCCustomBuildTool"
@@ -577,15 +458,6 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release_TS_php-5.3.17_win32|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCustomBuildTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="php5.5-201301221230|Win32"
-						ExcludedFromBuild="true"
 						>
 						<Tool
 							Name="VCCustomBuildTool"
@@ -593,12 +465,15 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release_TS_php-5.4.11_win32|Win32"
-						ExcludedFromBuild="true"
 						>
 						<Tool
 							Name="VCCustomBuildTool"
 						/>
 					</FileConfiguration>
+				</File>
+				<File
+					RelativePath="..\phrasea_engine\unicode.h"
+					>
 				</File>
 			</Filter>
 			<Filter
@@ -617,15 +492,15 @@
 					>
 				</File>
 				<File
-					RelativePath="..\phrasea_engine\ftrace.cpp"
-					>
-				</File>
-				<File
 					RelativePath="..\phrasea_engine\mutex.cpp"
 					>
 				</File>
 				<File
 					RelativePath="..\phrasea_engine\phrasea_clock_t.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\phrasea_engine\phrasea_types.cpp"
 					>
 				</File>
 				<File
@@ -649,7 +524,6 @@
 					>
 					<FileConfiguration
 						Name="Release_TS_php-5.4.7_win32|Win32"
-						ExcludedFromBuild="true"
 						>
 						<Tool
 							Name="VCCLCompilerTool"
@@ -657,15 +531,6 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release_TS_php-5.3.17_win32|Win32"
-						ExcludedFromBuild="true"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="php5.5-201301221230|Win32"
-						ExcludedFromBuild="true"
 						>
 						<Tool
 							Name="VCCLCompilerTool"
@@ -673,7 +538,6 @@
 					</FileConfiguration>
 					<FileConfiguration
 						Name="Release_TS_php-5.4.11_win32|Win32"
-						ExcludedFromBuild="true"
 						>
 						<Tool
 							Name="VCCLCompilerTool"
@@ -681,7 +545,7 @@
 					</FileConfiguration>
 				</File>
 				<File
-					RelativePath="..\phrasea_engine\utils.cpp"
+					RelativePath="..\phrasea_engine\unicode.cpp"
 					>
 				</File>
 			</Filter>
