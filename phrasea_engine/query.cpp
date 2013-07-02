@@ -1,14 +1,8 @@
 #include "base_header.h"
-#include "phrasea_clock_t.h"
+
 
 #include "../php_phrasea2/php_phrasea2.h"
-#include "../libstemmer_c/include/libstemmer.h"
-
-#include "cquerytree2parm.h"
-
-#include "mutex.h"
 #include "thread.h"
-#include "sql.h"
 
 
 CNODE *qtree2tree(zval **root, int depth); // in qtree.cpp
@@ -143,7 +137,7 @@ ZEND_FUNCTION(phrasea_query2)
 		bool first = true;
 		int n = 0;
 
-		for(int i=0; TRUE; i++)
+		for(int i=0; true; i++)
 		{
 			if(zend_hash_index_find(HASH_OF(zbusiness), i, (void **) &tmp1) == SUCCESS)
 			{
@@ -202,7 +196,7 @@ ZEND_FUNCTION(phrasea_query2)
 	if(Z_TYPE_PP(&zcolllist) == IS_ARRAY)
 	{
 		// fill the distant_coll_id to local_base_id map
-		for(int i = 0; TRUE; i++)
+		for(int i = 0; true; i++)
 		{
 			zval **tmp1;
 			if(zend_hash_index_find(HASH_OF(zcolllist), i, (void **) &tmp1) == SUCCESS)
@@ -227,7 +221,7 @@ ZEND_FUNCTION(phrasea_query2)
 			std::stringstream sql;
 			// SECURITY : sbasid is type long, no risk of injection
 			sql << "SELECT sbas_id, host, port, sqlengine, dbname, user, pwd FROM sbas WHERE sbas_id=" << sbasid;
-add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str())), TRUE);
+add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str())), true);
 			if(res.query((char *) (sql.str().c_str())))
 			{
 				SQLROW *row = res.fetch_row();
@@ -268,7 +262,7 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
 							sqlcoll << ')';
 						}
 						conn->query((char *) (sqlcoll.str().c_str())); // CREATE _tmpmask ...
-add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c_str()), TRUE);
+add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c_str()), true);
 
 						add_assoc_double(return_value, (char *) "time_tmpmask", stopChrono(time_tmpmask));
 
@@ -546,24 +540,26 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 
 									if(fp_answers)
 									{
-										fwrite((const void *) answer_binbuff, 1, answer_binsize, fp_answers);
+										if(answer_binbuff)
+											fwrite((const void *) answer_binbuff, 1, answer_binsize, fp_answers);
 										fclose(fp_answers);
 									}
 									if(fp_spots)
 									{
-										fwrite((const void *) spot_binbuff, 1, spot_binsize, fp_spots);
+										if(spot_binbuff)
+											fwrite((const void *) spot_binbuff, 1, spot_binsize, fp_spots);
 										fclose(fp_spots);
 									}
-									EFREE(answer_binbuff);
+//									EFREE(answer_binbuff);
 								}
-								else
-								{
+//								else
+//								{
 									// pb d'allocation !
 									if(answer_binbuff)
 										EFREE(answer_binbuff);
 									if(spot_binbuff)
 										EFREE(spot_binbuff);
-								}
+//								}
 							} // if(n_answers > 0)
 							add_assoc_double(return_value, (char *) "time_writeCache", stopChrono(time_writeCache));
 

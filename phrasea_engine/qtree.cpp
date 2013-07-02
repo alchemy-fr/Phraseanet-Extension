@@ -1,19 +1,9 @@
-#ifdef PHP_WIN32
-#else
-#include <pthread.h>
-#endif
-
 #include "base_header.h"
-#include "phrasea_clock_t.h"
 
-#include "../php_phrasea2/php_phrasea2.h"
-#include "cquerytree2parm.h"
 
 #include "thread.h"
 
 #define MAXSQL 8192		//  max length of sql query
-
-void freetree(CNODE *n);
 
 // true global ok here
 static const char *math2sql[] = {"=",  "<>",  ">",  "<",  ">=",  "<="};
@@ -60,12 +50,12 @@ char *kwclause(Cquerytree2Parm *qp, KEYWORD *k)
 				if(*p == '*')
 				{
 					*p = '%';
-					k->hasmeta = TRUE;
+					k->hasmeta = true;
 				}
 				else if(*p == '?')
 				{
 					*p = '_';
-					k->hasmeta = TRUE;
+					k->hasmeta = true;
 				}
 			}
 			ltot += k->hasmeta ? (14 + k->l_esc + 1) : (9 + k->l_esc + 1);
@@ -140,16 +130,21 @@ CNODE *qtree2tree(zval **root, int depth)
 				{
 					case PHRASEA_KEYLIST:
 						n->content.multileaf.firstkeyword = n->content.multileaf.lastkeyword = NULL;
-						for(i = 1; TRUE; i++)
+						for(i = 1; true; i++)
 						{
 							if(zend_hash_index_find(HASH_OF(*root), i, (void **) &tmp1) == SUCCESS && Z_TYPE_PP(tmp1) == IS_STRING)
 							{
 								if(k = (KEYWORD *) (EMALLOC(sizeof (KEYWORD))))
 								{
-									k->kword = ESTRDUP(Z_STRVAL_P(*tmp1));
+								//	k->kword = ESTRDUP(Z_STRVAL_P(*tmp1));
+									int l = Z_STRLEN(**tmp1);
+									if(k->kword = (char *)EMALLOC(l+1))
+									{
+										memcpy(k->kword, Z_STRVAL(**tmp1), l+1);
+									}
 									k->kword_esc = NULL;
 									k->nextkeyword = NULL;
-									k->hasmeta = FALSE;
+									k->hasmeta = false;
 									if(!(n->content.multileaf.firstkeyword))
 										n->content.multileaf.firstkeyword = k;
 									if(n->content.multileaf.lastkeyword)
@@ -276,8 +271,6 @@ void doOperatorAND(CNODE *n)
 			al->freeHits();
 			lastinsert = n->answers.insert(lastinsert, al);
 
-			// n->nbranswers++;
-
 			delete(ar);
 
 			ll.erase(ll.begin());
@@ -309,13 +302,11 @@ void doOperatorOR(CNODE *n)
 		{
 			lastinsert = n->answers.insert(lastinsert, al);
 			ll.erase(ll.begin());
-			// n->nbranswers++;
 		}
 		else if(ar->rid > al->rid)
 		{
 			lastinsert = n->answers.insert(lastinsert, ar);
 			lr.erase(lr.begin());
-			// n->nbranswers++;
 		}
 		else
 		{
@@ -349,8 +340,6 @@ void doOperatorOR(CNODE *n)
 			// drop 'ar'
 			delete ar;
 
-			// n->nbranswers++;
-
 			ll.erase(ll.begin());
 			lr.erase(lr.begin());
 		}
@@ -365,41 +354,10 @@ void doOperatorOR(CNODE *n)
 		n->answers.insert(lr.begin(), lr.end());
 		lr.clear();
 	}
-	// n->nbranswers = n->answers.size();
 }
 
 void doOperatorPROX(CNODE *n)
 {
-	/* to see later : optimizations
-	if(n->content.boperator.l->isempty && n->content.boperator.r->isempty)
-	{
-		n->isempty = TRUE;
-		n->time_C = stopChrono(chrono);
-		break;
-	}
-	if(n->content.boperator.l->isempty)
-	{
-		n->firstanswer = n->content.boperator.r->firstanswer;
-		n->lastanswer = n->content.boperator.r->lastanswer;
-		n->nbranswers = n->content.boperator.r->nbranswers;
-
-		n->content.boperator.r->firstanswer = n->content.boperator.r->lastanswer = NULL;
-
-		n->time_C = stopChrono(chrono);
-		break;
-	}
-	if(n->content.boperator.r->isempty)
-	{
-		n->firstanswer = n->content.boperator.l->firstanswer;
-		n->lastanswer = n->content.boperator.l->lastanswer;
-		n->nbranswers = n->content.boperator.l->nbranswers;
-
-		n->content.boperator.l->firstanswer = n->content.boperator.l->lastanswer = NULL;
-
-		n->time_C = stopChrono(chrono);
-		break;
-	}
-	 */
 	CHIT *hitl, *hitr, *hit;
 	int prox = n->content.boperator.numparm;
 	int prox0;
@@ -500,8 +458,6 @@ void doOperatorPROX(CNODE *n)
 			if(al->firsthit) // yes : keep it
 			{
 				lastinsert = n->answers.insert(lastinsert, al);
-
-				// n->nbranswers++;
 			}
 			else // no : delete
 			{
@@ -540,7 +496,6 @@ void doOperatorEXCEPT(CNODE *n)
 		{
 			lastinsert = n->answers.insert(lastinsert, al);
 			ll.erase(ll.begin());
-			// n->nbranswers++;
 		}
 		else if(ar->rid > al->rid)
 		{
@@ -618,7 +573,6 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 		{
 
 			case PHRASEA_OP_NULL: // empty query
-				// qp->n->nbranswers = 0;
 				qp->n->nleaf = 0;
 				break;
 
@@ -770,7 +724,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 						array_init(objl);
 						while(plk)
 						{
-							add_next_index_string(objl, plk->kword, TRUE);
+							add_next_index_string(objl, plk->kword, true);
 							plk = plk->nextkeyword;
 						}
 						if(qp->result)
@@ -779,7 +733,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					else
 					{
 						if(qp->result)
-							add_assoc_string(qp->result, (char *) "keyword", plk->kword, TRUE);
+							add_assoc_string(qp->result, (char *) "keyword", plk->kword, true);
 					}
 
 					qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
@@ -852,16 +806,16 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 									array_init(objl);
 									while(plk)
 									{
-										add_next_index_string(objl, plk->kword, TRUE);
+										add_next_index_string(objl, plk->kword, true);
 										plk = plk->nextkeyword;
 									}
 									add_assoc_zval(qp->result, (char *) "keyword", objl);
 								}
 								else
 								{
-									add_assoc_string(qp->result, (char *) "keyword", plk->kword, TRUE);
+									add_assoc_string(qp->result, (char *) "keyword", plk->kword, true);
 								}
-								add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, TRUE);
+								add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, true);
 							}
 							qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 						}
@@ -892,8 +846,8 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 						{
 							if(qp->result)
 							{
-								add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.l->content.multileaf.firstkeyword->kword, TRUE);
-								add_assoc_string(qp->result, (char *) "value", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, TRUE);
+								add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.l->content.multileaf.firstkeyword->kword, true);
+								add_assoc_string(qp->result, (char *) "value", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, true);
 							}
 
 							sql[0] = '\0';
@@ -1265,9 +1219,9 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 
 								if(qp->result)
 								{
-									add_assoc_string(qp->result, (char *) "field", pfield, TRUE);
+									add_assoc_string(qp->result, (char *) "field", pfield, true);
 									if(fvalue2)
-										add_assoc_string(qp->result, (char *) "value", fvalue2, TRUE);
+										add_assoc_string(qp->result, (char *) "value", fvalue2, true);
 								}
 
 								if(pfield[0] == '*' && pfield[1] == '\0')
@@ -1629,7 +1583,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 			add_assoc_long(qp->result, (char *) "nbanswers", qp->n->answers.size());
 		}
 		if(sqlerr)
-			free(sqlerr);
+			EFREE(sqlerr);
 	}
 	else
 	{

@@ -1,18 +1,6 @@
+
 #ifndef BASE_HEADER_H
 #define BASE_HEADER_H 1
-
-#ifndef TRUE
-	#define TRUE 1
-#endif
-#ifndef FALSE
-	#define FALSE 0
-#endif
-#ifndef true
-	#define true 1
-#endif
-#ifndef false
-	#define false 0
-#endif
 
 #include <sys/types.h>
 #include <sys/timeb.h>
@@ -69,7 +57,31 @@
 #  undef PACKAGE_BUGREPORT
 #endif
 
+#include "phrasea_clock_t.h"
 #include "trace_memory.h"
+#include "phrasea_types.h"
+#include "sql.h"
 
 #endif
 
+/*
+#ifdef PHP_WIN32
+# include <winsock2.h>
+# define signal(a, b) NULL
+#elif defined(NETWARE)
+# include <sys/socket.h>
+# define signal(a, b) NULL
+#else
+# if HAVE_SIGNAL_H
+#  include <signal.h>
+# endif
+# if HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+# endif
+# include <netdb.h>
+# include <netinet/in.h>
+#endif
+
+// ******* tosee : mysql.h moved
+#include <mysql.h>
+*/

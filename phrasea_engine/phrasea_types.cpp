@@ -1,49 +1,129 @@
-#include <set>
-#include <string>
-
-#include "sql.h"
-#include "phrasea_types.h"
+#include "base_header.h"
 
 
-void CSPOT::CSPOT()
+CSPOT::CSPOT(int start, int len)
 {
-	this->nextspot = NULL;
+	this->_nextspot = NULL;
+	this->start = start;
+	this->len = len;
 }
 
-void CHIT::CHIT()
+
+
+CHIT::CHIT(int iw)
 {
 	this->nexthit = NULL;
+	this->iws = this->iwe = iw;
+}
+
+CHIT::CHIT(int iws, int iwe)
+{
+	this->nexthit = NULL;
+	this->iws = iws;
+	this->iwe = iwe;
 }
 
 
-void CSHA::CSHA()
-		{
-			memset(this->_v, 0, sizeof(this->_v));
-		}
-void CSHA::CSHA(const unsigned char *v)
+
+CSHA::CSHA()
 {
-	memset(this->_v, 0, sizeof(this->_v));
+	memset(this->_v, 0, sizeof (this->_v));
+}
+
+CSHA::CSHA(const unsigned char *v)
+{
+	memset(this->_v, 0, sizeof (this->_v));
 	if(v)
 	{
-		unsigned char *p=this->_v;
-		for(register int i=0 ; i<64 && *v; i++)
+		unsigned char *p = this->_v;
+		for(register int i = 0; i < 64 && *v; i++)
 			*p++ = *v++;
 		*p = '\0';
 	}
 }
+
 bool CSHA::operator==(const CSHA &rhs)
 {
-	return(strcmp((const char *)(this->_v), (const char *)(rhs._v))==0);
-}
-bool CSHA::operator!=(const CSHA &rhs)
-{
-	return(!(*this==rhs));
-}
-const char *CSHA::operator const char *()
-{
-	return((const char *)(this->_v));
+	return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) == 0);
 }
 
+bool CSHA::operator!=(const CSHA &rhs)
+{
+	return (!(*this == rhs));
+}
+
+CSHA::operator const char *() const
+{
+	return ((const char *) (this->_v));
+}
+
+bool CSHA::operator<(const CSHA &rhs)
+{
+	return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) < 0);
+}
+
+bool CSHA::operator<=(const CSHA &rhs)
+{
+	return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) <= 0);
+}
+
+bool CSHA::operator>(const CSHA &rhs)
+{
+	return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) > 0);
+}
+
+bool CSHA::operator>=(const CSHA &rhs)
+{
+	return (strcmp((const char *) (this->_v), (const char *) (rhs._v)) >= 0);
+}
+
+
+
+CANSWER::CANSWER()
+{
+	this->sha2 = NULL;
+	this->sortkey.s = NULL;
+	this->firsthit = this->lasthit = NULL;
+	this->firstspot = this->lastspot = NULL;
+}
+
+CANSWER::~CANSWER()
+{
+	if(this->sha2)
+		delete(this->sha2);
+	if(this->sortkey.s)
+		delete(this->sortkey.s);
+	this->freeHits();
+	CSPOT *s;
+	while(this->firstspot)
+	{
+		s = this->firstspot->_nextspot;
+		delete(this->firstspot);
+		this->firstspot = s;
+	}
+}
+
+void CANSWER::addSpot(int start, int len)
+{
+	CSPOT *c;
+	for(c=this->firstspot; c; c=c->_nextspot)
+	{
+		if(c->start==start && c->len==len)
+		{
+			// already on list, forget
+			return;
+		}
+	}
+	// add to list
+	if( (c = new CSPOT(start, len)) )
+	{
+		if(!this->firstspot)
+			this->firstspot = c;
+		else
+			this->lastspot->_nextspot = c;
+		this->lastspot = c;
+	}
+}
 
 void CANSWER::freeHits()
 {
@@ -54,31 +134,20 @@ void CANSWER::freeHits()
 		delete(this->firsthit);
 		this->firsthit = h;
 	}
+	this->lasthit = NULL;
 }
-void CANSWER::CANSWER()
-{
-	this->sha2 = NULL;
-	this->sorttyp = SORTTYPE_UNKNOWN;
-	// this->sortkey = NULL;
-	this->firsthit = this->lasthit = NULL;
-	this->firstspot = this->lastspot = NULL;
-	//	this->nextanswer = NULL;
-}
-void CANSWER::~CANSWER()
-{
-	if(this->sha2)
-		delete(this->sha2);
-	if(this->sorttyp == SORTTYPE_TEXT && this->sortkey.s)
-		delete(this->sortkey.s);
-	this->freeHits();
-	CSPOT *s;
-	while(this->firstspot)
-	{
-		s = this->firstspot->nextspot;
-		delete(this->firstspot);
-		this->firstspot = s;
-	}
-}
+
+//		void CANSWER::printSpots()
+//		{
+//			zend_printf("@%p : rid=%d , firsthit=%p , lasthit=%p\n\tSPOTS :", this, this->rid, this->firsthit, this->lasthit);
+//			for(CSPOT *s=this->firstspot; s; s=s->_nextspot)
+//				zend_printf(" [%p: %d, %d -&gt;%p]", s, s->start, s->len, s->_nextspot);
+//			zend_printf("\n\tHITS :");
+//			for(CHIT *h=this->firsthit; h; h=h->nexthit)
+//				zend_printf(" [%p: %d, %d -&gt;%p]", h, h->iws, h->iwe, h->nexthit);
+//			zend_printf("\n");
+//		}
+
 
 
 bool PCANSWERCOMPRID_DESC::operator() (const PCANSWER& lhs, const PCANSWER& rhs) const
@@ -86,6 +155,7 @@ bool PCANSWERCOMPRID_DESC::operator() (const PCANSWER& lhs, const PCANSWER& rhs)
 	return lhs->rid > rhs->rid;
 }
 
+/*
 bool PCANSWERCOMP::operator() (const PCANSWER& lhs, const PCANSWER& rhs) const
 {
 //			return lhs->rid > rhs->rid;
@@ -98,14 +168,14 @@ bool PCANSWERCOMP::operator() (const PCANSWER& lhs, const PCANSWER& rhs) const
 	else
 		return lhs->rid > rhs->rid;
 }
+*/
 
 
-void CNODE::CNODE(int type)
+CNODE::CNODE(int type)
 {
 	this->type = type;
-	this->nbranswers = 0;
 	this->nleaf = 0;
-	this->isempty = FALSE;
+	this->isempty = false;
 	this->time_C = -1;
 	this->time_sqlQuery = this->time_sqlStore = this->time_sqlFetch = -1;
 }

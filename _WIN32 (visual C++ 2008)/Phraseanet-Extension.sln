@@ -5,20 +5,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Phraseanet-Extension", "Phr
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		php5.5-201301221230|Win32 = php5.5-201301221230|Win32
-		Release_TS_php-5.3.17_win32|Win32 = Release_TS_php-5.3.17_win32|Win32
-		Release_TS_php-5.4.11_win32|Win32 = Release_TS_php-5.4.11_win32|Win32
-		Release_TS_php-5.4.7_win32|Win32 = Release_TS_php-5.4.7_win32|Win32
+		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.php5.5-201301221230|Win32.ActiveCfg = php5.5-201301221230|Win32
-		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.php5.5-201301221230|Win32.Build.0 = php5.5-201301221230|Win32
-		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.Release_TS_php-5.3.17_win32|Win32.ActiveCfg = Release_TS_php-5.3.17_win32|Win32
-		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.Release_TS_php-5.3.17_win32|Win32.Build.0 = Release_TS_php-5.3.17_win32|Win32
-		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.Release_TS_php-5.4.11_win32|Win32.ActiveCfg = Release_TS_php-5.4.11_win32|Win32
-		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.Release_TS_php-5.4.11_win32|Win32.Build.0 = Release_TS_php-5.4.11_win32|Win32
-		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.Release_TS_php-5.4.7_win32|Win32.ActiveCfg = Release_TS_php-5.4.7_win32|Win32
-		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.Release_TS_php-5.4.7_win32|Win32.Build.0 = Release_TS_php-5.4.7_win32|Win32
+		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.Release|Win32.ActiveCfg = Release_TS_php-5.4.7_win32|Win32
+		{8EFB3641-2E3F-4E6E-A0BD-BD04537AC633}.Release|Win32.Build.0 = Release_TS_php-5.4.7_win32|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

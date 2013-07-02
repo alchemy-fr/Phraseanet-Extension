@@ -1,6 +1,5 @@
 #include "base_header.h"
 
-#include "../php_phrasea2/php_phrasea2.h"
 
 #include "unicode.h"
 
@@ -18474,6 +18473,8 @@ PHP_FUNCTION(phrasea_utf8_convert_to)
 		RETURN_FALSE;
 	}
 
+	RETVAL_FALSE;
+
 	char *str_out;
 	unsigned char *s = (unsigned char *)str;
 	int len_out = (len<<3)+6;	// *8 : hope it's wide enough !
@@ -18544,11 +18545,11 @@ PHP_FUNCTION(phrasea_utf8_convert_to)
 			}
 
 		}
-		str_out[iout++] = '\0';
+		str_out[iout] = '\0';
 
-		RETURN_STRING(str_out, false);
+		RETVAL_STRINGL(str_out, iout, true);
+		EFREE(str_out);
 	}
-	RETURN_FALSE;
 }
 
 
