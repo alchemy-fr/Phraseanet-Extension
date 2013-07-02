@@ -1,6 +1,12 @@
 #ifndef CQUERYTREE2PARM_H
 #define CQUERYTREE2PARM_H 1
 
+#pragma warning(push)
+#pragma warning(disable:4005)		// disable warning about double def of _WIN32_WINNT
+#include "php.h"
+#pragma warning(pop)
+
+
 #include "mutex.h"
 #include "../libstemmer_c/include/libstemmer.h"
 

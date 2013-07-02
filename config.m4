@@ -97,6 +97,7 @@ if test "$PHP_PHRASEA2" != "no"; then
                         libstemmer_c/runtime/api.c\
                         libstemmer_c/runtime/utilities.c\
                         libstemmer_c/libstemmer/libstemmer_utf8.c\
+                        phrasea_engine/phrasea_types.cpp \
                         phrasea_engine/cache.cpp\
                         phrasea_engine/fetchresults.cpp \
                         phrasea_engine/phrasea_clock_t.cpp \
