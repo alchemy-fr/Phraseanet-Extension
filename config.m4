@@ -32,12 +32,40 @@ if test "$PHP_PHRASEA2" != "no"; then
     # CC="$CC -g3"
     # CC="$CC -gdwarf-2"
 
+dnl Discard optimization flags when debugging is enabled
+if test "$PHP_DEBUG" = "yes"; then
+  PHP_DEBUG=1
+  ZEND_DEBUG=yes
+  changequote({,})
+  CFLAGS=`echo "$CFLAGS" | $SED -e 's/-O[0-9s]*//g'`
+  CXXFLAGS=`echo "$CXXFLAGS" | $SED -e 's/-O[0-9s]*//g'`
+  changequote([,])
+  dnl add -O0 only if GCC or ICC is used
+  if test "$GCC" = "yes" || test "$ICC" = "yes"; then
+    CFLAGS="$CFLAGS -O0"
+    CXXFLAGS="$CXXFLAGS -g -O0"
+  fi
+  if test "$SUNCC" = "yes"; then
+    if test -n "$auto_cflags"; then
+      CFLAGS="-g"
+      CXXFLAGS="-g"
+    else
+      CFLAGS="$CFLAGS -g"
+      CXXFLAGS="$CFLAGS -g"
+    fi
+  fi
+else
+  PHP_DEBUG=0
+  ZEND_DEBUG=no
+fi
+
+
     # PHP_ADD_LIBRARY_WITH_PATH($MYSQL_LIBNAME, $MYSQL_LIB_DIR, PHRASEA2_SHARED_LIBADD)
     PHP_SUBST(PHRASEA2_SHARED_LIBADD)
     PHP_ADD_LIBRARY(stdc++, 1, PHRASEA2_SHARED_LIBADD)
 
     dnl *************** search mysql inlude/lib path ****************
-    AC_PATH_PROG([MYSQL_CONFIG], [mysql_config], , $PATH/usr/bin:/usr/local/mysql/bin)
+    AC_PATH_PROG([MYSQL_CONFIG], [mysql_config], , $PATH:/usr/bin:/usr/local/mysql/bin)
     if test "x$MYSQL_CONFIG" = "x"; then
         AC_MSG_ERROR([mysql_config program not found])
         exit 3
@@ -102,7 +130,9 @@ if test "$PHP_PHRASEA2" != "no"; then
                         phrasea_engine/fetchresults.cpp \
                         phrasea_engine/phrasea_clock_t.cpp \
                         phrasea_engine/qtree.cpp \
+                        phrasea_engine/qtree3.cpp \
                         phrasea_engine/query.cpp \
+                        phrasea_engine/query3.cpp \
                         phrasea_engine/session.cpp \
                         phrasea_engine/sql.cpp \
                         phrasea_engine/cquerytree2parm.cpp \

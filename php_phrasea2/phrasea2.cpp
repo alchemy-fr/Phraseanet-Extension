@@ -57,6 +57,7 @@ static zend_function_entry phrasea2_functions[] = {
 	PHP_FE(phrasea_clear_cache, NULL)
 	PHP_FE(phrasea_close_session, NULL)
 	PHP_FE(phrasea_query2, NULL)
+	PHP_FE(phrasea_public_query, NULL)
 	PHP_FE(phrasea_fetch_results, NULL)
 	PHP_FE(phrasea_utf8_convert_to, NULL)
 	{

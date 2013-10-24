@@ -29,6 +29,7 @@ class SQLCONN
 		const char *error();
 		int escape_string(const char *str, int len = -1, char *outbuff = NULL);
 		void phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr);
+		void phrasea_query3(const char *sql, Cquerytree2Parm *qp, char **sqlerr);
 		my_ulonglong affected_rows();
 		// #WIN - _int64 affected_rows();
 		void *get_native_conn();

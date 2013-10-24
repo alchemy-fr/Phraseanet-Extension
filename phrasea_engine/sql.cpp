@@ -384,7 +384,9 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 	MYSQL *xconn = (MYSQL *)(qp->sqlconn->get_native_conn());
 	CHRONO chrono;
 
-	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
+// zend_printf("%s[%d] sql=%s found \n", __FILE__, __LINE__, sql);
+
+std::pair <std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
 
 	startChrono(chrono);
 
@@ -461,23 +463,33 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 						long lastrid = -1;
 
 						startChrono(chrono);
+		qp->n->n = 0;
 						while(mysql_stmt_fetch(stmt) == 0)
 						{
+		qp->n->n++;
+
 							rid = int_result[SQLFIELD_RID];
 
 							CANSWER *answer;
+							std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator where;
 							if((answer = new CANSWER()))
 							{
 								answer->rid = rid;
-								insert_ret = qp->n->answers.insert(answer);
-								if(insert_ret.second == false)
+
+//								insert_ret = qp->n->answers.insert(answer);
+//								if(insert_ret.second == false)
+								where = qp->n->answers.find(answer);
+								if(where != qp->n->answers.end())
 								{
+// zend_printf("%s[%d] rid=%ld found \n", __FILE__, __LINE__, rid);
 									// this rid already exists
 									delete answer;
-									answer = *(insert_ret.first);
+									answer = *where;
 								}
 								else
 								{
+									qp->n->answers.insert(answer);
+// zend_printf("%s[%d] rid=%ld inserted \n", __FILE__, __LINE__, rid);
 									// n->nbranswers++;
 
 									// a new rid
@@ -532,6 +544,192 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 							}
 						}
 						qp->n->time_sqlFetch = stopChrono(chrono);
+
+					}
+					else // store error
+					{
+						sprintfSQLERR(sqlerr, "ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+					}
+				}
+				else // bind error
+				{
+					sprintfSQLERR(sqlerr, "ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+				}
+			}
+			else // execute error
+			{
+				sprintfSQLERR(sqlerr, "ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+			}
+		}
+		else // prepare error
+		{
+			sprintfSQLERR(sqlerr, "ERR: line %d : %s\n%s\n", __LINE__, mysql_stmt_error(stmt), sql);
+		}
+
+		mysql_stmt_close(stmt);
+//		qp->sqlmutex->unlock();
+	}
+//	mysql_thread_end();
+}
+
+// send a 'leaf' query to a databox
+// results are returned into the node (qp->n)
+
+void SQLCONN::phrasea_query3(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
+{
+	qp->sqlconn->connect();
+	MYSQL *xconn = (MYSQL *)(qp->sqlconn->get_native_conn());
+	CHRONO chrono;
+
+// zend_printf("%s[%d] sql=%s found \n", __FILE__, __LINE__, sql);
+
+std::pair <std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
+
+	startChrono(chrono);
+
+	MYSQL_STMT *stmt;
+	if((stmt = mysql_stmt_init(xconn)))
+	{
+//		qp->sqlmutex->lock();
+		if(mysql_stmt_prepare(stmt, sql, strlen(sql)) == 0)
+		{
+
+			// Execute the SELECT query
+			if(mysql_stmt_execute(stmt) == 0)
+			{
+				qp->n->time_sqlQuery = stopChrono(chrono);
+
+				// Bind the result buffers for all columns before fetching them
+				MYSQL_BIND bind[5];
+				unsigned long length[5];
+				my_bool is_null[5];
+				my_bool error[5];
+				long int_result[5];
+				unsigned char sha256[65];
+				char skey[201];
+
+				memset(bind, 0, sizeof (bind));
+
+				// every field is int...
+				for(int i = 0; i < 5; i++)
+				{
+					length[i] = 0;
+					is_null[i] = true; // so each not fetched column (not listed in sql) will be null
+					error[i] = false;
+					int_result[i] = 0;
+					// INTEGER COLUMN(S)
+					bind[i].buffer_type = MYSQL_TYPE_LONG;
+					bind[i].buffer = (char *) (&int_result[i]);
+					bind[i].is_null = &is_null[i];
+					bind[i].length = &length[i];
+					bind[i].error = &error[i];
+				}
+				// ... except :
+
+				// sha256 column : 256 bits
+				memset(sha256, 0, sizeof (sha256));
+				bind[SQLFIELD_SHA256-2].buffer_type = MYSQL_TYPE_STRING;
+				bind[SQLFIELD_SHA256-2].buffer_length = 65;
+				bind[SQLFIELD_SHA256-2].buffer = (char *) sha256;
+
+				// skey column : 100 chars utf8
+				memset(skey, 0, sizeof (skey));
+				bind[SQLFIELD_SKEY].buffer_type = MYSQL_TYPE_STRING;
+				bind[SQLFIELD_SKEY].buffer_length = 201;
+				bind[SQLFIELD_SKEY].buffer = (char *) skey;
+
+				// Bind the result buffers
+				if(mysql_stmt_bind_result(stmt, bind) == 0)
+				{
+					bool ok_to_fetch = true;
+					// Now buffer all results to client (optional step)
+					startChrono(chrono);
+					ok_to_fetch = (mysql_stmt_store_result(stmt) == 0);
+					qp->n->time_sqlStore = stopChrono(chrono);
+
+					//					if(mutex_locked)
+					//					{
+					//						pthread_mutex_unlock(qp->sqlmutex);
+					//						mutex_locked = false;
+					//					}
+
+					// fetch results
+					if(ok_to_fetch)
+					{
+						long rid;
+						long lastrid = -1;
+
+						startChrono(chrono);
+		qp->n->n = 0;
+						while(mysql_stmt_fetch(stmt) == 0)
+						{
+		qp->n->n++;
+
+							rid = int_result[SQLFIELD_RID];
+
+							CANSWER *answer;
+							std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator where;
+							if((answer = new CANSWER()))
+							{
+								answer->rid = rid;
+
+//								insert_ret = qp->n->answers.insert(answer);
+//								if(insert_ret.second == false)
+								where = qp->n->answers.find(answer);
+								if(where != qp->n->answers.end())
+								{
+// zend_printf("%s[%d] rid=%ld found \n", __FILE__, __LINE__, rid);
+									// this rid already exists
+									delete answer;
+									answer = *where;
+								}
+								else
+								{
+									qp->n->answers.insert(answer);
+// zend_printf("%s[%d] rid=%ld inserted \n", __FILE__, __LINE__, rid);
+									// n->nbranswers++;
+
+									// a new rid
+									answer->cid = int_result[SQLFIELD_CID];
+
+									if(!is_null[SQLFIELD_SHA256-2])
+										answer->sha2 = new CSHA(sha256);
+
+									if(!is_null[SQLFIELD_SKEY])
+									{
+										skey[length[SQLFIELD_SKEY]] = '\0';
+										switch(qp->sortMethod)
+										{
+											case SORTMETHOD_STR:
+												answer->sortkey.s = new std::string(skey);
+												break;
+											case SORTMETHOD_INT:
+#ifdef PHP_WIN32
+												answer->sortkey.l = _strtoui64(skey, NULL, 10);
+#else
+												answer->sortkey.l = atoll(skey);
+#endif
+												break;
+										}
+									}
+								}
+							}
+
+							if(!is_null[SQLFIELD_IW] && answer)
+							{
+								CHIT *hit;
+								if(hit = new CHIT(int_result[SQLFIELD_IW]))
+								{
+									if(!(answer->firsthit))
+										answer->firsthit = hit;
+									if(answer->lasthit)
+										answer->lasthit->nexthit = hit;
+									answer->lasthit = hit;
+								}
+							}
+						}
+						qp->n->time_sqlFetch = stopChrono(chrono);
+
 					}
 					else // store error
 					{

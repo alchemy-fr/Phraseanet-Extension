@@ -5,231 +5,17 @@
 
 #define MAXSQL 8192		//  max length of sql query
 
-// true global ok here
 static const char *math2sql[] = {"=",  "<>",  ">",  "<",  ">=",  "<="};
 
-
-char *kwclause(Cquerytree2Parm *qp, KEYWORD *k)
-{
-	char *ret = NULL;
-
-	int ltot = 0;
-	int llng = 0;
-	if(qp->lng)
-	{
-		// add lng to the query
-		// (QQQQ) AND lnq='LNG'
-		ltot += 1 + (llng = strlen(qp->lng)) + 11 + 1;
-	}
-
-	KEYWORD *k0 = k;
-	int nkeywords = 0;
-	for(k = k0; k; k = k->nextkeyword)
-	{
-		char *kk;
-		int l;
-
-		if(qp->stemmer)
-		{
-			l = strlen(k->kword);
-			kk = (char *)(sb_stemmer_stem(qp->stemmer, (const sb_symbol *)(k->kword), l));
-			l = sb_stemmer_length(qp->stemmer);
-		}
-		else
-		{
-			kk = k->kword;
-			l = strlen(kk);
-		}
-
-		k->l_esc = qp->sqlconn->escape_string(kk, l, NULL);	// needed place to escape
-		if( (k->kword_esc = (char*)EMALLOC(k->l_esc)) )
-		{
-			k->l_esc = qp->sqlconn->escape_string(kk, l, k->kword_esc);	// escape
-			for(char *p = k->kword_esc; *p; p++)
-			{
-				if(*p == '*')
-				{
-					*p = '%';
-					k->hasmeta = true;
-				}
-				else if(*p == '?')
-				{
-					*p = '_';
-					k->hasmeta = true;
-				}
-			}
-			ltot += k->hasmeta ? (14 + k->l_esc + 1) : (9 + k->l_esc + 1);
-			if(k->nextkeyword)
-				ltot += 4;	// " OR "
-		}
-	}
-
-	if( (ret = (char *)EMALLOC(ltot + 1)) )
-	{
-		char *p = ret;
-
-		if(qp->lng)
-			*p++ = '(';
-
-		for(k = k0; k; k = k->nextkeyword)
-		{
-			if(k->kword_esc)
-			{
-				if(k->hasmeta)
-				{
-					memcpy(p, "keyword LIKE '", 14);
-					p += 14;
-				}
-				else
-				{
-					memcpy(p, "keyword='", 9);
-					p += 9;
-				}
-				memcpy(p, k->kword_esc, k->l_esc);
-				p += k->l_esc;
-				*p++ = '\'';
-				if(k->nextkeyword)
-				{
-					memcpy(p, " OR ", 4);
-					p += 4;
-				}
-			}
-		}
-		if(qp->lng)
-		{
-			memcpy(p, ") AND lng='", 11);
-			p += 11;
-			memcpy(p, qp->lng, llng);
-			p += llng;
-			*p++ = '\'';
-		}
-
-		*p = '\0';
-	}
-
-	return(ret);
-}
+char *kwclause(Cquerytree2Parm *qp, KEYWORD *k);
+void sprintfSQL(char *str, const char *format, ...);
+void doOperatorAND(CNODE *n);
+void doOperatorPROX(CNODE *n);
+void doOperatorOR(CNODE *n);
+void doOperatorEXCEPT(CNODE *n);
 
 
-CNODE *qtree2tree(zval **root, int depth)
-{
-	TSRMLS_FETCH();
-	zval **tmp1, **tmp2;
-	CNODE *n = NULL;
-	int i;
-	KEYWORD *k;
-
-	if(Z_TYPE_PP(root) == IS_ARRAY)
-	{
-		// the first elem (num) gives the type of node
-		if(zend_hash_index_find(HASH_OF(*root), 0, (void **) &tmp1) == SUCCESS && Z_TYPE_PP(tmp1) == IS_LONG)
-		{
-			if(n = new CNODE(Z_LVAL_P(*tmp1)))
-			{
-				switch(n->type)
-				{
-					case PHRASEA_KEYLIST:
-						n->content.multileaf.firstkeyword = n->content.multileaf.lastkeyword = NULL;
-						for(i = 1; true; i++)
-						{
-							if(zend_hash_index_find(HASH_OF(*root), i, (void **) &tmp1) == SUCCESS && Z_TYPE_PP(tmp1) == IS_STRING)
-							{
-								if(k = (KEYWORD *) (EMALLOC(sizeof (KEYWORD))))
-								{
-								//	k->kword = ESTRDUP(Z_STRVAL_P(*tmp1));
-									int l = Z_STRLEN(**tmp1);
-									if(k->kword = (char *)EMALLOC(l+1))
-									{
-										memcpy(k->kword, Z_STRVAL(**tmp1), l+1);
-									}
-									k->kword_esc = NULL;
-									k->nextkeyword = NULL;
-									k->hasmeta = false;
-									if(!(n->content.multileaf.firstkeyword))
-										n->content.multileaf.firstkeyword = k;
-									if(n->content.multileaf.lastkeyword)
-										n->content.multileaf.lastkeyword->nextkeyword = k;
-									n->content.multileaf.lastkeyword = k;
-								}
-							}
-							else
-								break;
-						}
-						break;
-					case PHRASEA_KW_LAST: // last
-						n->content.numparm.v = DEFAULTLAST;
-						if(zend_hash_index_find(HASH_OF(*root), 1, (void **) &tmp1) == SUCCESS && Z_TYPE_PP(tmp1) == IS_LONG)
-						{
-							n->content.numparm.v = Z_LVAL_P(*tmp1);
-						}
-						n->nleaf = 1;
-						break;
-					case PHRASEA_KW_ALL: // all
-						n->content.numparm.v = 0;
-						if(zend_hash_index_find(HASH_OF(*root), 1, (void **) &tmp1) == SUCCESS && Z_TYPE_PP(tmp1) == IS_LONG)
-						{
-							n->content.numparm.v = Z_LVAL_P(*tmp1);
-						}
-						n->nleaf = 1;
-						break;
-					case PHRASEA_OP_AND: // and
-					case PHRASEA_OP_OR: // or
-					case PHRASEA_OP_EXCEPT: // except
-					case PHRASEA_OP_EQUAL:
-					case PHRASEA_OP_COLON:
-					case PHRASEA_OP_NOTEQU:
-					case PHRASEA_OP_GT:
-					case PHRASEA_OP_LT:
-					case PHRASEA_OP_GEQT:
-					case PHRASEA_OP_LEQT:
-					case PHRASEA_OP_IN: // in
-						n->content.boperator.numparm = 0;
-						n->content.boperator.l = n->content.boperator.r = NULL;
-						if((zend_hash_index_find(HASH_OF(*root), 1, (void **) &tmp1) == SUCCESS) && (zend_hash_index_find(HASH_OF(*root), 2, (void **) &tmp2) == SUCCESS))
-						{
-							n->content.boperator.l = qtree2tree(tmp1, depth + 1);
-							n->content.boperator.r = qtree2tree(tmp2, depth + 1);
-							n->nleaf = n->content.boperator.l->nleaf + n->content.boperator.r->nleaf;
-						}
-						break;
-					case PHRASEA_OP_NEAR: // near
-					case PHRASEA_OP_BEFORE: // near
-					case PHRASEA_OP_AFTER: // near
-						n->content.boperator.numparm = 12;
-						n->content.boperator.l = n->content.boperator.r = NULL;
-						i = 1;
-						if((zend_hash_index_find(HASH_OF(*root), i, (void **) &tmp1) == SUCCESS) && Z_TYPE_PP(tmp1) == IS_LONG)
-						{
-							n->content.boperator.numparm = Z_LVAL_P(*tmp1);
-							i++;
-						}
-						if((zend_hash_index_find(HASH_OF(*root), i, (void **) &tmp1) == SUCCESS) && (zend_hash_index_find(HASH_OF(*root), i + 1, (void **) &tmp2) == SUCCESS))
-						{
-							n->content.boperator.l = qtree2tree(tmp1, depth + 1);
-							n->content.boperator.r = qtree2tree(tmp2, depth + 1);
-							n->nleaf = n->content.boperator.l->nleaf + n->content.boperator.r->nleaf;
-						}
-						break;
-					default:
-						delete n;
-						n = NULL;
-						break;
-				}
-			}
-		}
-		else
-		{
-			n = new CNODE(PHRASEA_OP_NULL);
-		}
-	}
-	else
-	{
-		n = new CNODE(PHRASEA_OP_NULL);
-	}
-	return (n);
-}
-
-void doOperatorAND(CNODE *n)
+void doOperatorAND3(CNODE *n)
 {
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> ll = n->content.boperator.l->answers;
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> lr = n->content.boperator.r->answers;
@@ -256,16 +42,6 @@ void doOperatorAND(CNODE *n)
 				al->sha2 = ar->sha2;
 				ar->sha2 = NULL; // to prevent deletion of ar to delete sha !
 			}
-			// insert spots of 'ar' at the end of 'al', deleting 'ar' spots
-			CSPOT *cspot;
-			while( (cspot = ar->firstspot) )
-			{
-				al->addSpot(cspot->start, cspot->len);
-				ar->firstspot = cspot->_nextspot;
-				delete cspot;
-			}
-			// ar is empty
-			ar->lastspot = NULL;
 
 			// a 'AND' has no 'hits'
 			al->freeHits();
@@ -289,7 +65,7 @@ void doOperatorAND(CNODE *n)
 	}
 }
 
-void doOperatorOR(CNODE *n)
+void doOperatorOR3(CNODE *n)
 {
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> ll = n->content.boperator.l->answers;
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> lr = n->content.boperator.r->answers;
@@ -311,17 +87,6 @@ void doOperatorOR(CNODE *n)
 		else
 		{
 			// here al.rid == ar.rid, we will keep al to insert into result, and delete ar
-
-			// insert spots of 'ar' at the end of 'al', deleting 'ar' spots
-			CSPOT *cspot;
-			while( (cspot = ar->firstspot) )
-			{
-				al->addSpot(cspot->start, cspot->len);
-				ar->firstspot = cspot->_nextspot;
-				delete cspot;
-			}
-			// 'ar' is empty
-			ar->lastspot = NULL;
 
 			// attach hits of 'ar' at the end of 'al'
 			if(ar->firsthit)
@@ -356,7 +121,7 @@ void doOperatorOR(CNODE *n)
 	}
 }
 
-void doOperatorPROX(CNODE *n)
+void doOperatorPROX3(CNODE *n)
 {
 	CHIT *hitl, *hitr, *hit;
 	int prox = n->content.boperator.numparm;
@@ -387,20 +152,6 @@ void doOperatorPROX(CNODE *n)
 				al->sha2 = ar->sha2;
 				ar->sha2 = NULL; // to prevent deletion of ar to delete sha !
 			}
-			// insert spots of 'ar' at the end of 'al', deleting 'ar' spots
-			CSPOT *cspot;
-			while( (cspot = ar->firstspot) )
-			{
-				al->addSpot(cspot->start, cspot->len);
-				ar->firstspot = cspot->_nextspot;
-				delete cspot;
-			}
-			// 'ar' is empty
-			ar->lastspot = NULL;
-//for(CSPOT *cc=al->firstspot; cc; cc=cc->_nextspot)
-//{
-//	zend_printf("spot(%d-%d)\n", cc->start, cc->len);
-//}
 
 			// keep a ptr on hits of 'al'
 			hitl = al->firsthit;
@@ -483,7 +234,7 @@ void doOperatorPROX(CNODE *n)
 	}
 }
 
-void doOperatorEXCEPT(CNODE *n)
+void doOperatorEXCEPT3(CNODE *n)
 {
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> ll = n->content.boperator.l->answers;
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> lr = n->content.boperator.r->answers;
@@ -522,16 +273,7 @@ void doOperatorEXCEPT(CNODE *n)
 	}
 }
 
-void sprintfSQL(char *str, const char *format, ...)
-{
-	va_list args;
-	va_start(args, format);
-	if( vsnprintf(str, MAXSQL, format, args) >= MAXSQL)
-		str[0] = '\0';
-	va_end(args);
-}
-
-THREAD_ENTRYPOINT querytree2(void *_qp)
+THREAD_ENTRYPOINT querytree3(void *_qp)
 {
 	TSRMLS_FETCH();
 
@@ -557,7 +299,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 	Cquerytree2Parm *qp = (Cquerytree2Parm *) _qp;
 
 //	zend_printf("%s (%d) : depth=%d, business='%s' <br/>\n", __FILE__, __LINE__, qp->depth, qp->business);
-zend_printf("%s[%d] \n", __FILE__, __LINE__);
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 
 	// struct Squerytree2Parm *qp = (Squerytree2Parm *) _qp;
 	sql[0] = '\0';
@@ -585,7 +327,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						// ===== OK =====
 						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								", prop.value AS skey"
-								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+								// ", NULL AS iw"
 								// ", NULL AS sha256"
 								" FROM %s"
 								" INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
@@ -599,7 +341,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						// ===== OK =====
 						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								// ", NULL AS skey"
-								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+								// ", NULL AS iw"
 								// ", NULL AS sha256"
 								" FROM %s"
 								, qp->sqltrec
@@ -613,7 +355,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						// ===== OK =====
 						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								", prop.value AS skey"
-								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+								// ", NULL AS iw"
 								// ", NULL AS sha256"
 								" FROM %s"
 								" INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
@@ -628,7 +370,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						// ===== OK =====
 						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								// ", NULL AS skey"
-								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+								// ", NULL AS iw"
 								// ", NULL AS sha256"
 								" FROM %s"
 								" ORDER BY record_id DESC LIMIT %i"
@@ -637,7 +379,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 								);
 					}
 				}
-				qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
+				qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
 				break;
 
 			case PHRASEA_KW_LAST: // last
@@ -648,7 +390,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						// ===== OK =====
 						sprintfSQL(sql, "SELECT r.record_id, r.coll_id"
 								", prop.value AS skey"
-								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+								// ", NULL AS iw"
 								// ", NULL AS sha256"
 								" FROM ("
 								"SELECT record_id, record.coll_id"
@@ -666,7 +408,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						// ===== OK =====
 						sprintfSQL(sql, "SELECT record_id, record.coll_id"
 								// ", NULL AS skey"
-								// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+								// ", NULL AS iw"
 								// ", NULL AS sha256"
 								" FROM %s"
 								" ORDER BY record_id DESC LIMIT %i"
@@ -674,7 +416,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 								, qp->n->content.numparm.v
 								);
 					}
-					qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
+					qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
 				}
 				break;
 
@@ -688,7 +430,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						// ===== OK =====
 						sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
 									", prop.value AS skey"
-									", hitstart, hitlen, iw"
+									", iw"
 									// ", NULL AS sha256"
 									" FROM ((kword INNER JOIN idx USING(kword_id))"
 									" INNER JOIN %s USING(record_id))"
@@ -706,7 +448,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						// ===== OK =====
 						sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
 									", NULL AS skey"
-									", hitstart, hitlen, iw"
+									", iw"
 									// ", NULL AS sha256"
 									" FROM (kword INNER JOIN idx USING(kword_id))"
 									" INNER JOIN %s USING(record_id)"
@@ -737,7 +479,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 							add_assoc_string(qp->result, (char *) "keyword", plk->kword, true);
 					}
 
-					qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
+					qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
 				}
 				break;
 
@@ -764,7 +506,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 								// ===== OK =====
 								sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
 											", prop.value AS skey"
-											", hitstart, hitlen, iw"
+											", iw"
 											// ", NULL AS sha256"
 											" FROM (((kword INNER JOIN idx USING(kword_id))"
 											" INNER JOIN %s USING(record_id))"
@@ -784,7 +526,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 								// ===== OK =====
 								sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
 											", NULL AS skey"
-											", hitstart, hitlen, iw"
+											", iw"
 											// ", NULL AS sha256"
 											" FROM ((kword INNER JOIN idx USING(kword_id))"
 											" INNER JOIN %s USING(record_id))"
@@ -818,7 +560,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 								}
 								add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, true);
 							}
-							qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
+							qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
 						}
 						else
 						{
@@ -870,6 +612,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 								lvalue_esc = qp->sqlconn->escape_string(pvalue, lvalue, pvalue_esc);
 
 								// technical field sha256 ?
+
 								if(!sql[0] && strcmp(pfield, "sha256") == 0)
 								{
 									if(qp->n->type == PHRASEA_OP_EQUAL && strcmp(pvalue, "sha256") == 0)
@@ -878,8 +621,8 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										*(qp->psortField) = NULL; // !!!!! this special query cancels sort !!!!!
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, coll_id"
-												", NULL AS skey"
-												", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS skey"
+												// ", NULL AS iw"
 												", sha256"
 												" FROM (SELECT sha256, SUM(1) AS n FROM %s GROUP BY sha256 HAVING n>1) AS b"
 												" INNER JOIN record USING(sha256)"
@@ -893,7 +636,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										{
 											sprintfSQL(sql, "SELECT record_id, record.coll_id"
 													", prop.value AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+													// ", NULL AS iw"
 													// ", NULL AS sha256"
 													" FROM %s"
 													" INNER JOIN prop USING(record_id)"
@@ -907,11 +650,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										else
 										{
 											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													// ", NULL AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM %s WHERE sha256%s'%s'" // ORDER BY record_id DESC"
+											sprintfSQL(sql, "SELECT record_id, record.coll_id FROM %s WHERE sha256%s'%s'"
 													, qp->sqltrec
 													, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
 													, pvalue_esc
@@ -919,6 +658,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										}
 									}
 								}
+
 
 								// technical field recordid ?
 								if(!sql[0] && strcmp(pfield, "recordid") == 0)
@@ -928,7 +668,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												", prop.value AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s"
 												" INNER JOIN prop USING(record_id)"
@@ -944,7 +684,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												// ", NULL AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s WHERE record_id%s'%s'" // ORDER BY record_id DESC"
 												, qp->sqltrec
@@ -962,7 +702,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", prop.value AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s"
 												" INNER JOIN prop USING(record_id)"
@@ -978,7 +718,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												// ", NULL AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s"
 												" WHERE type%s'%s'" // ORDER BY record_id DESC"
@@ -1000,7 +740,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												", prop.value AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM (%s LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s'))"
 												" INNER JOIN prop ON(prop.record_id=record.record_id)"
@@ -1016,7 +756,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												// ", NULL AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s"
 												" LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s')"
@@ -1060,7 +800,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", prop.value AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s INNER JOIN prop USING(record_id)"
 												" WHERE ((status ^ 0b%s) & 0b%s = 0) AND prop.name='%s'"
@@ -1075,7 +815,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												// ", NULL AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM %s"
 												" WHERE ((status ^ 0b%s) & 0b%s = 0)"
@@ -1100,7 +840,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												", propsort.value AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM (prop INNER JOIN %s USING(record_id))"
 												" INNER JOIN prop AS propsort USING(record_id)"
@@ -1119,7 +859,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
 												// ", NULL AS skey"
-												// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM prop INNER JOIN %s USING(record_id)"
 												" WHERE name='%s' AND value%s'%s' AND (%s%s)"
@@ -1133,7 +873,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 									}
 								}
 
-								qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
+								qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
 							}
 							else
 							{
@@ -1233,7 +973,6 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", prop.value AS skey"
-												", hitstart, hitlen"
 												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM (thit INNER JOIN %s USING(record_id))"
@@ -1250,8 +989,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 									{
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, record.coll_id"
-												", NULL AS skey"
-												", hitstart, hitlen"
+												// ", NULL AS skey"
 												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM thit INNER JOIN %s USING(record_id)"
@@ -1271,7 +1009,6 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, record.coll_id"
 												", prop.value AS skey"
-												", hitstart, hitlen"
 												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM (thit INNER JOIN %s USING(record_id))"
@@ -1289,8 +1026,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 									{
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, record.coll_id"
-												", NULL AS skey"
-												", hitstart, hitlen"
+												// ", NULL AS skey"
 												// ", NULL AS iw"
 												// ", NULL AS sha256"
 												" FROM thit INNER JOIN %s USING(record_id)"
@@ -1304,7 +1040,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 									}
 								}
 // zend_printf("SQL2 : %s \n", sql);
-								qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
+								qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
 							}
 							else
 							{
@@ -1320,6 +1056,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 					}
 				}
 				break;
+
 			case PHRASEA_OP_AND: // and
 				if(qp->n->content.boperator.l && qp->n->content.boperator.r)
 				{
@@ -1338,14 +1075,14 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree2,			    // thread function name
+							querytree3,			    // thread function name
 							(void*)&qpl,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[0]);   // returns the thread identifier
 						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree2,			    // thread function name
+							querytree3,			    // thread function name
 							(void*)&qpr,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[1]);   // returns the thread identifier
@@ -1353,16 +1090,16 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
 #else
-						THREAD_START(threadl, querytree2, &qpl);
-						THREAD_START(threadr, querytree2, &qpr);
+						THREAD_START(threadl, querytree3, &qpl);
+						THREAD_START(threadr, querytree3, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
 #endif
 					}
 					else
 					{
-						querytree2((void *) &qpl);
-						querytree2((void *) &qpr);
+						querytree3((void *) &qpl);
+						querytree3((void *) &qpr);
 					}
 
 					if(qp->result)
@@ -1400,14 +1137,14 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree2,			    // thread function name
+							querytree3,			    // thread function name
 							(void*)&qpl,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[0]);   // returns the thread identifier
 						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree2,			    // thread function name
+							querytree3,			    // thread function name
 							(void*)&qpr,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[1]);   // returns the thread identifier
@@ -1415,16 +1152,16 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
 #else
-						THREAD_START(threadl, querytree2, &qpl);
-						THREAD_START(threadr, querytree2, &qpr);
+						THREAD_START(threadl, querytree3, &qpl);
+						THREAD_START(threadr, querytree3, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
 #endif
 					}
 					else
 					{
-						querytree2((void *) &qpl);
-						querytree2((void *) &qpr);
+						querytree3((void *) &qpl);
+						querytree3((void *) &qpr);
 					}
 
 					if(qp->result)
@@ -1460,14 +1197,14 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree2,			    // thread function name
+							querytree3,			    // thread function name
 							(void*)&qpl,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[0]);   // returns the thread identifier
 						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree2,			    // thread function name
+							querytree3,			    // thread function name
 							(void*)&qpr,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[1]);   // returns the thread identifier
@@ -1475,16 +1212,16 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
 #else
-						THREAD_START(threadl, querytree2, &qpl);
-						THREAD_START(threadr, querytree2, &qpr);
+						THREAD_START(threadl, querytree3, &qpl);
+						THREAD_START(threadr, querytree3, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
 #endif
 					}
 					else
 					{
-						querytree2((void *) &qpl);
-						querytree2((void *) &qpr);
+						querytree3((void *) &qpl);
+						querytree3((void *) &qpr);
 					}
 
 					if(qp->result)
@@ -1500,6 +1237,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 					qp->n->time_C = stopChrono(chrono);
 				}
 				break;
+
 			case PHRASEA_OP_EXCEPT: // except
 				if(qp->n->content.boperator.l && qp->n->content.boperator.r)
 				{
@@ -1518,14 +1256,14 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree2,			    // thread function name
+							querytree3,			    // thread function name
 							(void*)&qpl,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[0]);   // returns the thread identifier
 						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree2,			    // thread function name
+							querytree3			    // thread function name
 							(void*)&qpr,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[1]);   // returns the thread identifier
@@ -1533,16 +1271,16 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
 #else
-						THREAD_START(threadl, querytree2, &qpl);
-						THREAD_START(threadr, querytree2, &qpr);
+						THREAD_START(threadl, querytree3, &qpl);
+						THREAD_START(threadr, querytree3, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
 #endif
 					}
 					else
 					{
-						querytree2((void *) &qpl);
-						querytree2((void *) &qpr);
+						querytree3((void *) &qpl);
+						querytree3((void *) &qpr);
 					}
 
 					if(qp->result)
@@ -1559,6 +1297,7 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 					qp->n->time_C = stopChrono(chrono);
 				}
 				break;
+
 		}
 
 
@@ -1597,49 +1336,5 @@ zend_printf("%s[%d] \n", __FILE__, __LINE__);
 		THREAD_EXIT(0);
 	}
 	return 0;
-}
-
-void freetree(CNODE *n)
-{
-	KEYWORD *k;
-	if(n)
-	{
-		switch(n->type)
-		{
-			case PHRASEA_KEYLIST:
-				while(n->content.multileaf.firstkeyword)
-				{
-					if(n->content.multileaf.firstkeyword->kword)
-						EFREE(n->content.multileaf.firstkeyword->kword);
-					if(n->content.multileaf.firstkeyword->kword_esc)
-						EFREE(n->content.multileaf.firstkeyword->kword_esc);
-					k = n->content.multileaf.firstkeyword->nextkeyword;
-					EFREE(n->content.multileaf.firstkeyword);
-					n->content.multileaf.firstkeyword = k;
-				}
-				n->content.multileaf.lastkeyword = NULL;
-				break;
-			case PHRASEA_OP_EQUAL:
-			case PHRASEA_OP_NOTEQU:
-			case PHRASEA_OP_GT:
-			case PHRASEA_OP_LT:
-			case PHRASEA_OP_GEQT:
-			case PHRASEA_OP_LEQT:
-			case PHRASEA_OP_AND:
-			case PHRASEA_OP_OR:
-			case PHRASEA_OP_EXCEPT:
-			case PHRASEA_OP_NEAR:
-			case PHRASEA_OP_BEFORE:
-			case PHRASEA_OP_AFTER:
-			case PHRASEA_OP_IN:
-				freetree(n->content.boperator.l);
-				freetree(n->content.boperator.r);
-				break;
-			default:
-				break;
-		}
-		delete n;
-		// zend_printf("n ");
-	}
 }
 

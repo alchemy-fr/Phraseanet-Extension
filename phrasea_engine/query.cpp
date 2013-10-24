@@ -3,11 +3,17 @@
 
 #include "../php_phrasea2/php_phrasea2.h"
 #include "thread.h"
+#include "sql.h"
 
 
 CNODE *qtree2tree(zval **root, int depth); // in qtree.cpp
 void freetree(CNODE *n); // in qtree.cpp
 THREAD_ENTRYPOINT querytree2(void *_qp); // in qtree.cpp
+
+bool pcanswercomp_rid_desc(PCANSWER lhs, PCANSWER rhs)
+{
+	return lhs->rid > rhs->rid;
+}
 
 bool pcanswercomp_int_asc(PCANSWER lhs, PCANSWER rhs)
 {
@@ -61,7 +67,8 @@ ZEND_FUNCTION(phrasea_query2)
 	char *zsrchlng = NULL;
 	int zsrchlnglen;
 
-	std::map<long, long> t_collid; // key : distant_coll_id (dbox side) ==> value : local_base_id (appbox side)
+	std::map<long, long> t_collid;			// key : distant_coll_id (dbox side) ==> value : local_base_id (appbox side)
+	TCOLLMASK t_collmask; // key : distant_coll_id (dbox side) ==> value : mask_xor, mask_and
 
 	switch(ZEND_NUM_ARGS())
 	{
@@ -205,7 +212,9 @@ ZEND_FUNCTION(phrasea_query2)
 				{
 					long distant_coll_id = PHRASEA2_G(global_session)->get_distant_coll_id(Z_LVAL_P(*tmp1));
 					if(distant_coll_id != -1)
+					{
 						t_collid[distant_coll_id] = Z_LVAL_P(*tmp1);
+					}
 				}
 			}
 			else
@@ -268,6 +277,20 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 
 						// small sql that joins record and collusr
 						const char *sqltrec = "(record)";
+
+						// load the tmpmask in ram
+						SQLRES restmp1(conn);
+						SQLROW *rowtmp1;
+						restmp1.query("SELECT coll_id, `mask_xor`, `mask_and` FROM `_tmpmask`");
+						while((rowtmp1 = restmp1.fetch_row()))
+						{
+							long coll_id  = atol(rowtmp1->field(0, "0"));
+							unsigned long mask_xor = atol(rowtmp1->field(1, "0"));
+							unsigned long mask_and = atol(rowtmp1->field(2, "0"));
+//		zend_printf("%d %d %d \n", coll_id, mask_xor, mask_and);
+							t_collmask[coll_id] = COLLMASK(mask_xor, mask_and);;
+						}
+
 
 						// let's check if we need to include mask in our queries (if every mask on every coll is '0', we dont need)
 						SQLRES restmp(conn);
@@ -336,7 +359,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 // pthread_mutex_t sqlmutex;
 						CMutex sqlmutex;
 
-						Cquerytree2Parm qp(query, 0, conn, &sqlmutex, return_value, sqltrec, pzsortfield, sortmethod, sqlbusiness_c, stemmer, srch_lng_esc);
+						Cquerytree2Parm qp(query, 0, conn, &sqlmutex, return_value, sqltrec, /*t_collmask,*/ pzsortfield, sortmethod, sqlbusiness_c, stemmer, srch_lng_esc);
 						if(MYSQL_THREAD_SAFE)
 						{
 #ifdef WIN32
@@ -380,7 +403,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 							CHRONO time_sort;
 							startChrono(time_sort);
 
-							std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator it;
+							std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator it;
 							for(it = query->answers.begin(); it != query->answers.end(); it++)
 							{
 								answer = *(it);
@@ -509,7 +532,7 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 									else
 									{
 										// no sort, dump directly from query
-										std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator it;
+										std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator it;
 										for(it = query->answers.begin(); it != query->answers.end(); it++)
 										{
 											answer = *(it);
