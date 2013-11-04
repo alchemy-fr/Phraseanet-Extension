@@ -30,6 +30,7 @@ PHP_FUNCTION(phrasea_open_session);
 PHP_FUNCTION(phrasea_clear_cache);
 PHP_FUNCTION(phrasea_close_session);
 PHP_FUNCTION(phrasea_query2);
+PHP_FUNCTION(phrasea_highlight);
 PHP_FUNCTION(phrasea_public_query);
 PHP_FUNCTION(phrasea_fetch_results);
 PHP_FUNCTION(phrasea_conn);

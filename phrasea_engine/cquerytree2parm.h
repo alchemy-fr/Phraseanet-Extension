@@ -16,8 +16,19 @@ class Cquerytree2Parm
 {
 	public:
 		CNODE *n;
+		char branch;
 		int depth;
 		SQLCONN *sqlconn;
+
+		char *host; //										 row->field(1, "127.0.0.1"),	// host
+		int port;	//								 atoi(row->field(2, "3306")),	// port
+		char *user; //								 row->field(5, "root"),			// user
+		char *pwd;	//								 row->field(6, ""),				// pwd
+		char *base;	//								 row->field(4, "dbox"),			// base
+		char *tmptable;	//								 tmptable						// tmptable
+
+		char *sqltmp;			// sql create tmp
+
 		zval *result;
 		const char *sqltrec;
 		char **psortField;
@@ -26,7 +37,33 @@ class Cquerytree2Parm
 		CMutex *sqlmutex;
 		struct sb_stemmer *stemmer;
 		const char *lng;
-		Cquerytree2Parm(CNODE *n, int depth, SQLCONN *sqlconn, CMutex *sqlmutex, zval *result, const char *sqltrec, char **psortField, int sortMethod, const char * business, sb_stemmer *stemmer, const char *lng);
+		long rid;
+		Cquerytree2Parm(
+				CNODE *n,
+				char branch,
+				int depth,
+				SQLCONN *sqlconn,
+
+				char *host,
+				int port,
+				char *user,
+				char *pwd,
+				char *base,
+				char *tmptable,
+
+				char *sqltmp,
+
+				CMutex *sqlmutex,
+				zval *result,
+				const char *sqltrec,
+				char **psortField,
+				int sortMethod,
+				const char * business,
+				sb_stemmer *stemmer,
+				const char *lng,
+				const unsigned long rid
+			);
+		~Cquerytree2Parm();
 };
 
 struct Squerytree2Parm

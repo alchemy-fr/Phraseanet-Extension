@@ -9,7 +9,7 @@
 CNODE *qtree2tree(zval **root, int depth); // in qtree.cpp
 void freetree(CNODE *n); // in qtree.cpp
 THREAD_ENTRYPOINT querytree2(void *_qp); // in qtree.cpp
-THREAD_ENTRYPOINT querytree3(void *_qp); // in qtree.cpp
+THREAD_ENTRYPOINT querytree_public(void *_qp); // in qtree.cpp
 
 bool pcanswercomp_rid_desc(PCANSWER lhs, PCANSWER rhs);
 bool pcanswercomp_int_asc(PCANSWER lhs, PCANSWER rhs);
@@ -22,7 +22,7 @@ typedef struct {
 					// in
 					zval *zcolllist;
 					long sbasid;
-					zval *zresult;
+					zval *zquery;
 					SQLRES *res;
 					long multidocMode;
 					zval *zqarray;
@@ -36,18 +36,225 @@ typedef struct {
 					// out
 					CNODE *query;
 					std::multiset<PCANSWER, bool(*)(PCANSWER, PCANSWER)> *ret;
-} QUERY3_PARM;
+} PHRASEA_QUERY_PARM;
+
+void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm);
 
 
-void phrasea_query3(QUERY3_PARM *qp3_parm);
+
+
+ZEND_FUNCTION(phrasea_highlight)
+{
+	CHRONO time_phpfct;
+	startChrono(time_phpfct);
+
+	zval *zqarray;
+	long zsbid, zrid;
+	long zdebug = 0;
+
+	char *zsrchlng = NULL;
+	int zsrchlnglen;
+
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+	switch(ZEND_NUM_ARGS())
+	{
+		case 4: // sbid, rid, qarray, lng
+			if(zend_parse_parameters(4 TSRMLS_CC, (char *) "llas", &zsbid, &zrid, &zqarray, &zsrchlng, &zsrchlnglen ) == FAILURE)
+			{
+				RETURN_FALSE;
+			}
+			break;
+		case 5: // sbid, rid, qarray, lng, debug
+			if(zend_parse_parameters(5 TSRMLS_CC, (char *) "llasl", &zsbid, &zrid, &zqarray, &zsrchlng, &zsrchlnglen, &zdebug ) == FAILURE)
+			{
+				RETURN_FALSE;
+			}
+			break;
+		default:
+			WRONG_PARAM_COUNT;	// returns !
+			break;
+	}
+
+	if(Z_TYPE_P(zqarray) != IS_ARRAY)
+		RETURN_FALSE;
+
+
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+
+	SQLCONN *epublisher = PHRASEA2_G(epublisher);
+	if(!epublisher)
+	{
+		// we need conn !
+		//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
+		RETURN_FALSE;
+	}
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+
+
+
+	array_init(return_value);
+
+	zval *zqueries = NULL;
+	if(zdebug)
+	{
+		MAKE_STD_ZVAL(zqueries);
+		array_init(zqueries);
+	}
+
+	zval *zanswers;
+	MAKE_STD_ZVAL(zanswers);
+	array_init(zanswers);
+
+
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+	SQLRES res(epublisher);
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+
+	// get the adresse of the distant database
+	std::stringstream sql;
+	// SECURITY : sbasid is type long, no risk of injection
+	sql << "SELECT sbas_id, host, port, sqlengine, dbname, user, pwd FROM sbas WHERE sbas_id=" << zsbid;
+	if(zdebug)
+		add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str())), true);
+	if(res.query((char *) (sql.str().c_str())))
+	{
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+		SQLROW *row = res.fetch_row();
+		if(row)
+		{
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+			// on se connecte sur la base distante
+			SQLCONN *conn = new SQLCONN(row->field(1, "127.0.0.1"), atoi(row->field(2, "3306")), row->field(5, "root"), row->field(6, ""), row->field(4, "dbox"));
+			if(conn && conn->connect())
+			{
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+
+
+				struct sb_stemmer *stemmer = NULL;
+				// SECURITY : escape search_lng
+				char srch_lng[33];
+				char srch_lng_esc[65];
+
+				srch_lng[0] = srch_lng_esc[0] = '\0';
+				if(zsrchlng != NULL)
+				{
+					if(zsrchlnglen > 32)
+						zsrchlnglen = 32;
+					memcpy((void*)srch_lng, (void*)zsrchlng, zsrchlnglen);
+					srch_lng[zsrchlnglen] = '\0';
+					srch_lng_esc[conn->escape_string(srch_lng, zsrchlnglen, srch_lng_esc)] = '\0';
+
+					stemmer = sb_stemmer_new(srch_lng, "UTF_8");
+				}
+
+				// change the php query to a tree of nodes
+				CNODE *query;
+				query = qtree2tree(&zqarray, 0);
+
+				CMutex sqlmutex;
+				char *zsortfield = NULL;
+				char **pzsortfield = &zsortfield;
+
+				Cquerytree2Parm qp(
+									query,
+									'M',
+									0,
+									conn,
+
+									(char *)row->field(1, "127.0.0.1"),	// host
+									atoi(row->field(2, "3306")),	// port
+									(char *)row->field(5, "root"),			// user
+									(char *)row->field(6, ""),				// pwd
+									(char *)row->field(4, "dbox"),			// base
+									NULL,						// tmptable
+
+									NULL,		// sqltmp
+
+									&sqlmutex,
+									zqueries,
+									"record",
+									/*t_collmask,*/
+									pzsortfield,				// sortfield,
+									0,							// sortmethod,
+									"",							// sqlbusiness_c,
+									stemmer,						// stemmer
+									srch_lng_esc,						// srch_lng_esc
+									zrid			// new : only this rid
+						);
+// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+
+				querytree2((void *) &qp);
+
+				CANSWER *answer;
+				CSPOT *spot;
+				int n_answers = 0, n_spots = 0;
+				std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator it;
+				for(it = query->answers.begin(); it != query->answers.end(); it++)
+				{
+					answer = *(it);
+					n_answers++;
+
+					zval *zanswer;
+					MAKE_STD_ZVAL(zanswer);
+					array_init(zanswer);
+
+					zval *zspots;
+					MAKE_STD_ZVAL(zspots);
+					array_init(zspots);
+
+					answer->nspots = 0;
+					for(spot = answer->firstspot; spot; spot = spot->_nextspot)
+					{
+						n_spots++;
+						answer->nspots++;
+
+						zval *zspot;
+						MAKE_STD_ZVAL(zspot);
+						array_init(zspot);
+
+						add_assoc_long(zspot, (char *) "start", spot->start);
+						add_assoc_long(zspot, (char *) "len", spot->len);
+
+						add_next_index_zval(zspots, zspot);
+					}
+
+					add_assoc_long(zanswer, (char *) "sbid", zsbid);
+					add_assoc_long(zanswer, (char *) "rid", answer->rid);
+					add_assoc_zval(zanswer, (char *) "spots", zspots);
+
+					add_next_index_zval(zanswers, zanswer);
+				}
+
+				if(zqueries)
+					add_assoc_zval(return_value, (char *) "queries", zqueries);
+				add_assoc_zval(return_value, (char *) "results", zanswers);
+
+				// free the tree
+				freetree(query);
+			}
+			if(conn)
+				delete conn;
+		}
+	}
+
+	if(zdebug)
+		add_assoc_double(return_value, (char *) "time_phpfct", stopChrono(time_phpfct));
+}
+
 
 ZEND_FUNCTION(phrasea_public_query)
 {
+	CHRONO time_phpfct;
+	startChrono(time_phpfct);
+
 	zval *zbarray;
 	HashTable *barray_hash;
 	HashPosition bpointer;
 
 	long multidocMode = PHRASEA_MULTIDOC_DOCONLY;
+	long zdebug = 0;
 
 	char *zsortfield = NULL;
 	int zsortfieldlen;
@@ -64,11 +271,16 @@ ZEND_FUNCTION(phrasea_public_query)
 
 	long record_offset, record_count;
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 	switch(ZEND_NUM_ARGS())
 	{
 		case 7: // barray, multidocMode, sortfield, search_business, srch_lng
 			if(zend_parse_parameters(7 TSRMLS_CC, (char *) "alsasll", &zbarray, &multidocMode, &zsortfield, &zsortfieldlen, &zbusiness, &zsrchlng, &zsrchlnglen, &record_offset, &record_count) == FAILURE)
+			{
+				RETURN_FALSE;
+			}
+			break;
+		case 8: // barray, multidocMode, sortfield, search_business, srch_lng, debug
+			if(zend_parse_parameters(8 TSRMLS_CC, (char *) "alsaslll", &zbarray, &multidocMode, &zsortfield, &zsortfieldlen, &zbusiness, &zsrchlng, &zsrchlnglen, &record_offset, &record_count, &zdebug) == FAILURE)
 			{
 				RETURN_FALSE;
 			}
@@ -145,7 +357,6 @@ ZEND_FUNCTION(phrasea_public_query)
 		if(sqlbusiness_c = (char *)EMALLOC(1))
 			sqlbusiness_c[0] = '\0';
 	}
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 
 	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	if(!epublisher)
@@ -154,27 +365,23 @@ ZEND_FUNCTION(phrasea_public_query)
 		//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
 		RETURN_FALSE;
 	}
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-
 
 
 	array_init(return_value);
 
-	zval *zqueries;
-	MAKE_STD_ZVAL(zqueries);
-	array_init(zqueries);
+	zval *zqueries = NULL;
+	if(zdebug)
+	{
+		MAKE_STD_ZVAL(zqueries);
+		array_init(zqueries);
+	}
 
 	zval *zanswers;
 	MAKE_STD_ZVAL(zanswers);
 	array_init(zanswers);
 
 
-	CHRONO time_phpfct;
-	startChrono(time_phpfct);
-
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 	SQLRES res(epublisher);
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 
 
 	barray_hash = Z_ARRVAL_P(zbarray);
@@ -206,12 +413,15 @@ ZEND_FUNCTION(phrasea_public_query)
 // zend_printf("%s[%d] zbid=%ld \n", __FILE__, __LINE__, Z_LVAL_PP(zsbid) );
 
 
-		zval *zquery;
-		MAKE_STD_ZVAL(zquery);
-		array_init(zquery);
+		zval *zquery = NULL;
+		if(zdebug)
+		{
+			MAKE_STD_ZVAL(zquery);
+			array_init(zquery);
+		}
 
 
-		QUERY3_PARM qp3_parm = {
+		PHRASEA_QUERY_PARM phrasea_query_parm = {
 					// in
 					*zcolllist,
 					Z_LVAL_PP(zsbid),
@@ -236,57 +446,42 @@ ZEND_FUNCTION(phrasea_public_query)
 		CHRONO time_sbas;
 		startChrono(time_sbas);
 
-		phrasea_query3(&qp3_parm);
+		phrasea_public_query_c(&phrasea_query_parm);
 
+		size_t n = phrasea_query_parm.query->answers.size();
 
-		if(qp3_parm.query->n < record_offset)
+// zend_printf("%s[%d] qp3_parm.query->answers.size() = %ld \n", __FILE__, __LINE__, n);
+
+		if(n < record_offset)
 		{
-// zend_printf("%s[%d] full sbas (n=%ld) ignored, record_offset=%ld -> %ld \n",
-//	__FILE__,
-//	__LINE__,
-//	qp3_parm.query->n,
-//	record_offset,
-//	record_offset - qp3_parm.query->n
-// );
-			record_offset -= qp3_parm.query->n;
+// zend_printf("%s[%d] full sbas (n=%ld) ignored, record_offset=%ld -> %ld \n", __FILE__, __LINE__, n, record_offset, record_offset - n);
+			record_offset -= n;
 		}
 		else
 		{
 			CANSWER *answer;
 			// dump the sorted multiset to cache
+#ifdef WIN32
+			std::multiset<PCANSWER, bool(__cdecl *)(PCANSWER,PCANSWER)>::iterator ipmset;
+#else
 			std::multiset<PCANSWER, bool>::iterator ipmset;
-			for(ipmset = qp3_parm.ret->begin(); record_count>0 && ipmset != qp3_parm.ret->end(); ipmset++)
+#endif
+			for(ipmset = phrasea_query_parm.ret->begin(); record_count>0 && ipmset != phrasea_query_parm.ret->end(); ipmset++)
 			{
 				answer = *(ipmset);
 				if(record_offset > 0)
 				{
-//zend_printf("%s[%d] sbid=%ld, cid=%ld, bid=%ld, rid=%ld (offset=%ld -> ignored) \n",
-//	__FILE__,
-//	__LINE__,
-//	qp3_parm.sbasid,
-//	answer->cid,
-//	answer->bid,
-//	answer->rid,
-//	record_offset
-//);
+// zend_printf("%s[%d] sbid=%ld, cid=%ld, bid=%ld, rid=%ld (offset=%ld -> ignored) \n", __FILE__, __LINE__, qp3_parm.sbasid, answer->cid, answer->bid, answer->rid, record_offset );
 					record_offset--;
 				}
 				else
 				{
-//zend_printf("%s[%d] sbid=%ld, cid=%ld, bid=%ld, rid=%ld (result %ld) \n",
-//	__FILE__,
-//	__LINE__,
-//	qp3_parm.sbasid,
-//	answer->cid,
-//	answer->bid,
-//	answer->rid,
-//	record_count
-//);
+// zend_printf("%s[%d] sbid=%ld, cid=%ld, bid=%ld, rid=%ld (result %ld) \n", __FILE__, __LINE__, qp3_parm.sbasid, answer->cid, answer->bid, answer->rid, record_count );
 					zval *zanswer;
 					MAKE_STD_ZVAL(zanswer);
 					array_init(zanswer);
 
-					add_assoc_long(zanswer, (char *) "sbid", qp3_parm.sbasid);
+					add_assoc_long(zanswer, (char *) "sbid", phrasea_query_parm.sbasid);
 					//add_assoc_long(zanswer, (char *) "cid", answer->cid);
 					//add_assoc_long(zanswer, (char *) "bid", answer->bid);
 					add_assoc_long(zanswer, (char *) "rid", answer->rid);
@@ -298,22 +493,24 @@ ZEND_FUNCTION(phrasea_public_query)
 			}
 		}
 
-		freetree(qp3_parm.query);
+		freetree(phrasea_query_parm.query);
 
-		add_assoc_double(zquery, (char *) "time_all", stopChrono(time_sbas));
-
-		add_next_index_zval(zqueries, zquery);
+		if(zquery && zqueries)
+		{
+			add_assoc_double(zquery, (char *) "time_all", stopChrono(time_sbas));
+			add_next_index_zval(zqueries, zquery);
+		}
 
 		if(record_count <= 0)
 		{
-//zend_printf("%s[%d] count done \n",
-//	__FILE__,
-//	__LINE__);
+// zend_printf("%s[%d] count done \n", __FILE__, __LINE__ );
 			break;
 		}
 	}
 
-	add_assoc_zval(return_value, (char *) "queries", zqueries);
+	if(zqueries)
+		add_assoc_zval(return_value, (char *) "queries", zqueries);
+
 	add_assoc_zval(return_value, (char *) "results", zanswers);
 
 // zend_printf("%s[%d] \n", __FILE__, __LINE__);
@@ -321,16 +518,20 @@ ZEND_FUNCTION(phrasea_public_query)
 	if(sqlbusiness_c)
 		EFREE(sqlbusiness_c);
 
-	add_assoc_double(return_value, (char *) "time_phpfct", stopChrono(time_phpfct));
+	if(zdebug)
+		add_assoc_double(return_value, (char *) "time_phpfct", stopChrono(time_phpfct));
 }
 
-void phrasea_query3(QUERY3_PARM *qp3_parm)
+
+
+void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm)
 {
+	TSRMLS_FETCH();
+
 	long session = 0L;
 
 	std::map<long, long> t_collid;			// key : distant_coll_id (dbox side) ==> value : local_base_id (appbox side)
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 	// replace list of 'local' collections  (base_ids) by list of 'distant' collections (coll ids)
 	if(Z_TYPE_PP(&(qp3_parm->zcolllist)) == IS_ARRAY)
 	{
@@ -364,61 +565,66 @@ void phrasea_query3(QUERY3_PARM *qp3_parm)
 			std::stringstream sql;
 			// SECURITY : sbasid is type long, no risk of injection
 			sql << "SELECT sbas_id, host, port, sqlengine, dbname, user, pwd FROM sbas WHERE sbas_id=" << qp3_parm->sbasid;
-add_assoc_string(qp3_parm->zresult, (char *) "sql_sbas", ((char *) (sql.str().c_str())), true);
+
+			if(qp3_parm->zquery)
+				add_assoc_string(qp3_parm->zquery, (char *) "sql_sbas", ((char *) (sql.str().c_str())), true);
+
 			if(qp3_parm->res->query((char *) (sql.str().c_str())))
 			{
 // zend_printf("%s[%d] \n", __FILE__, __LINE__);
 				SQLROW *row = qp3_parm->res->fetch_row();
 				if(row)
 				{
+					if(qp3_parm->zquery)
+						add_assoc_double(qp3_parm->zquery, (char *) "time_select", stopChrono(time_connect));
+
+					startChrono(time_connect);
 // zend_printf("%s[%d] \n", __FILE__, __LINE__);
 					// on se connecte sur la base distante
 					SQLCONN *conn = new SQLCONN(row->field(1, "127.0.0.1"), atoi(row->field(2, "3306")), row->field(5, "root"), row->field(6, ""), row->field(4, "dbox"));
 					if(conn && conn->connect())
 					{
-add_assoc_double(qp3_parm->zresult, (char *) "time_connect", stopChrono(time_connect));
+						if(qp3_parm->zquery)
+							add_assoc_double(qp3_parm->zquery, (char *) "time_connect", stopChrono(time_connect));
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-						// build the sql that filter collections
-						CHRONO time_tmpmask;
+						CHRONO chrono;
+						startChrono(chrono);
 
-//	sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` (KEY(coll_id)) ENGINE=MEMORY SELECT coll_id FROM collusr WHERE site='"
-//	<< zsite_esc << "' AND coll_id";
-//						conn->query("CREATE TABLE `_tmpmask` (`coll_id` int(11) NOT NULL, PRIMARY KEY (`coll_id`))");
-						startChrono(time_tmpmask);
-						conn->query("CREATE TEMPORARY TABLE `_tmpmask` (`coll_id` int(11) NOT NULL, PRIMARY KEY (`coll_id`)) ENGINE=MEMORY");
+						char lbuff[40];
 
-add_assoc_string(qp3_parm->zresult, (char *) "sql_createtmp", (char *) "CREATE TEMPORARY TABLE `_tmpmask` (`coll_id` int(11) NOT NULL, PRIMARY KEY (`coll_id`)) ENGINE=MEMORY", true);
-add_assoc_double(qp3_parm->zresult, (char *) "time_createtmp", stopChrono(time_tmpmask));
-
-
-						startChrono(time_tmpmask);
-						std::stringstream sqlcoll;
-						sqlcoll << "INSERT INTO `_tmpmask` (coll_id) VALUES ";
 						std::map<long, long>::iterator it_coll;
-						int i=0;
-						for(it_coll = t_collid.begin(); it_coll != t_collid.end(); it_coll++, i++)
+						int i;
+						std::string sqltmp;
+						sqltmp = "INSERT INTO `_tmpmask` (coll_id) VALUES ";
+						for(i=0, it_coll = t_collid.begin(); it_coll != t_collid.end(); it_coll++, i++)
 						{
 							if(i>0)
-								sqlcoll << ',';
-							sqlcoll << '(' << it_coll->first << ')';
+								sqltmp += ',';
+							sprintf(lbuff, "(%lu)", it_coll->first);
+							sqltmp += lbuff;
 						}
-						conn->query((char *) (sqlcoll.str().c_str())); // CREATE _tmpmask ...
-add_assoc_string(qp3_parm->zresult, (char *) "sql_inserttmp", (char *) (sqlcoll.str().c_str()), true);
-add_assoc_double(qp3_parm->zresult, (char *) "time_inserttmp", stopChrono(time_tmpmask));
 
 						// small sql that joins record and collusr
-						const char *sqltrec = "(record)";
+						char *sqltrec = (char *)"(record)";
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-
-						if(qp3_parm->multidocMode == PHRASEA_MULTIDOC_DOCONLY)
-							sqltrec = "(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id AND parent_record_id=0)";
+						if(qp3_parm->multidocMode == PHRASEA_MULTIDOC_ALL)
+						{
+							sqltrec = (char *)"(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id)";
+							// sprintf(sqltrec, "(record INNER JOIN %s ON %s.coll_id=record.coll_id)", tmptable, tmptable);
+						}
 						else
-							sqltrec = "(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id AND parent_record_id=1)";
-
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+						{
+							if(qp3_parm->multidocMode == PHRASEA_MULTIDOC_DOCONLY)
+							{
+								sqltrec = (char *)"(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id AND parent_record_id=0)";
+								// sprintf(sqltrec, "(record INNER JOIN %s ON %s.coll_id=record.coll_id AND parent_record_id=0)", tmptable, tmptable);
+							}
+							else
+							{
+								sqltrec = (char *)"(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id AND parent_record_id=1)";
+								// sprintf(sqltrec, "(record INNER JOIN %s ON %s.coll_id=record.coll_id AND parent_record_id=1)", tmptable, tmptable);
+							}
+						}
 
 						// change the php query to a tree of nodes
 						qp3_parm->query = qtree2tree(&(qp3_parm->zqarray), 0);
@@ -458,42 +664,47 @@ add_assoc_double(qp3_parm->zresult, (char *) "time_inserttmp", stopChrono(time_t
 						}
 
 						// here we query phrasea !
-// pthread_mutex_t sqlmutex;
 						CMutex sqlmutex;
 
-						Cquerytree2Parm qp(qp3_parm->query, 0, conn, &sqlmutex, qp3_parm->zresult, sqltrec, /*t_collmask,*/ pzsortfield, qp3_parm->sortmethod, qp3_parm->sqlbusiness_c, stemmer, srch_lng_esc);
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-						if(MYSQL_THREAD_SAFE)
-						{
-#ifdef WIN32
-							HANDLE  hThread;
-							unsigned dwThreadId;
-							hThread = (HANDLE)_beginthreadex(
-								NULL,                   // default security attributes
-								0,                      // use default stack size
-								querytree3,			    // thread function name
-								(void*)&qp,             // argument to thread function
-								0,                      // use default creation flags
-								&dwThreadId);   // returns the thread identifier
-							WaitForSingleObject(hThread, INFINITE);
-							CloseHandle(hThread);
-#else
-							ATHREAD thread;
-							THREAD_START(thread, querytree3, &qp);
-							THREAD_JOIN(thread);
-#endif
-						}
-						else
-						{
-							querytree3((void *) &qp);
-						}
+						Cquerytree2Parm querytree_parm(
+										 qp3_parm->query,
+										 'M',					// main thread
+										 0,						// depth 0
+										 conn,
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
+										 (char *)row->field(1, "127.0.0.1"),	// host
+										 atoi(row->field(2, "3306")),	// port
+										 (char *)row->field(5, "root"),			// user
+										 (char *)row->field(6, ""),				// pwd
+										 (char *)row->field(4, "dbox"),			// base
+//										 (char *)tmptable,						// tmptable
+										 (char *)NULL,						// tmptable
+
+										 (char *)sqltmp.c_str(),
+
+										 &sqlmutex,
+										 qp3_parm->zquery,
+										 sqltrec,
+										 /*t_collmask,*/
+										 pzsortfield,
+										 qp3_parm->sortmethod,
+										 qp3_parm->sqlbusiness_c,
+										 stemmer,
+										 srch_lng_esc,
+										 0				//	0 : full query, do not filter on rid
+						);
+
+						startChrono(chrono);
+
+
+						querytree_public((void *) &querytree_parm);
+
+
+						if(qp3_parm->zquery)
+							add_assoc_double(qp3_parm->zquery, (char *) "time_queries", stopChrono(chrono));
 
 						if(stemmer)
 							sb_stemmer_delete(stemmer);
-
-						conn->query("DROP TABLE _tmpmask");	// no need to drop temporary tables, but clean
 
 						// serialize in binary to write on cache files
 						CANSWER *answer;
@@ -533,10 +744,6 @@ add_assoc_double(qp3_parm->zresult, (char *) "time_inserttmp", stopChrono(time_t
 								sortBySha256 = true;
 						}
 
-// zend_printf("%s[%d] n_answers=%d, n_spots=%d \n", __FILE__, __LINE__, n_answers, n_spots);
-
-						// std::multiset<PCANSWER, bool(*)(PCANSWER, PCANSWER)> *pmset = NULL;
-
 						// if we need sort
 						if(sortBySha256)
 						{
@@ -566,151 +773,15 @@ add_assoc_double(qp3_parm->zresult, (char *) "time_inserttmp", stopChrono(time_t
 						}
 						else
 						{
-//							qp3_parm->ret = new std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>;
 							qp3_parm->ret = new std::multiset<PCANSWER, bool(*)(PCANSWER, PCANSWER)>(pcanswercomp_rid_desc);
 							qp3_parm->ret->insert(qp3_parm->query->answers.begin(), qp3_parm->query->answers.end());
 						}
 
-add_assoc_double(qp3_parm->zresult, (char *) "time_sort", stopChrono(time_sort));
+						if(qp3_parm->zquery)
+							add_assoc_double(qp3_parm->zquery, (char *) "time_sort", stopChrono(time_sort));
 
-
-//						CHRONO time_writeCache;
-//						startChrono(time_writeCache);
-//
-//						int answer_binsize, spot_binsize;
-//						CACHE_ANSWER *answer_binbuff = NULL;
-//						CACHE_SPOT *spot_binbuff = NULL;
-//
-//						answer_binsize = n_answers * sizeof (CACHE_ANSWER);
-//						spot_binsize = n_spots * sizeof (CACHE_SPOT);
-//
-//						// to set the offset of spots, we must know how much are already in file
-//						unsigned int spot_index = 0;
-/*
-						FILE *fp_spots = NULL, *fp_answers = NULL;
-						char *fname;
-						int l = strlen(PHRASEA2_G(tempPath))
-							+ 9 // "_phrasea."
-							+ strlen(epublisher->ukey)
-							+ 9 // ".answers."
-							+ 33 // session
-							+ 1; // '\0'
-						if((fname = (char *) EMALLOC(l)))
-						{
-							if(n_spots > 0)
-							{
-								sprintf(fname, "%s_phrasea.%s.spots.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, session);
-								if((fp_spots = fopen(fname, "ab")))
-								{
-									fseek(fp_spots, 0, SEEK_END);
-									spot_index = ftell(fp_spots) / sizeof (CACHE_SPOT);
-								}
-							}
-							sprintf(fname, "%s_phrasea.%s.answers.%ld.bin", PHRASEA2_G(tempPath), epublisher->ukey, session);
-							if((fp_answers = fopen(fname, "ab")))
-							{
-								;
-							}
-							EFREE(fname);
-						}
-*/
-//						if((answer_binsize == 0 || (answer_binbuff = (CACHE_ANSWER *) EMALLOC(answer_binsize))) && (spot_binsize == 0 || (spot_binbuff = (CACHE_SPOT *) EMALLOC(spot_binsize))))
-//						{
-//							CACHE_ANSWER *panswer = answer_binbuff;
-//							CACHE_SPOT *pspot = spot_binbuff;
-//							long current_cid = -1;
-//							long current_bid = -1;
-/*
-							if(pmset)
-							{
-								// dump the sorted multiset to cache
-								std::multiset<PCANSWER, bool(*)(PCANSWER, PCANSWER)>::iterator ipmset;
-								for(ipmset = pmset->begin(); ipmset != pmset->end(); ipmset++)
-								{
-									answer = *(ipmset);
-									if(answer->cid != current_cid)
-									{
-										// change of collection, search id of matching local base
-										if((current_bid = t_collid[answer->cid]) == 0) // 0 if cid is unknown (default int constructor)
-											current_bid = -1;
-										current_cid = answer->cid;
-									}
-
-//zend_printf(" [[rid %d]]\n", answer->rid);
-									panswer->rid = answer->rid;
-									panswer->bid = current_bid;
-									panswer->spots_index = spot_index;
-									panswer->nspots = answer->nspots;
-									spot_index += answer->nspots;
-									for(spot = answer->firstspot; spot; spot = spot->_nextspot)
-									{
-//zend_printf("   {{%d,%d}}\n", spot->start, spot->len);
-										pspot->start = spot->start;
-										pspot->len = spot->len;
-										pspot++;
-									}
-									panswer++;
-								}
-								delete pmset;
-							}
-							else
-							{
-								// no sort, dump directly from query
-								std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator it;
-								for(it = qp3_parm->query->answers.begin(); it != qp3_parm->query->answers.end(); it++)
-								{
-									answer = *(it);
-									if(answer->cid != current_cid)
-									{
-										// change of collection, search id of matching local base
-										if((current_bid = t_collid[answer->cid]) == 0) // 0 if cid is unknown (default int constructor)
-											current_bid = -1;
-										current_cid = answer->cid;
-									}
-
-//zend_printf(" [[rid %d]]\n", answer->rid);
-									panswer->rid = answer->rid;
-									panswer->bid = current_bid;
-									panswer->spots_index = spot_index;
-									panswer->nspots = answer->nspots;
-									spot_index += answer->nspots;
-									for(spot = answer->firstspot; spot; spot = spot->_nextspot)
-									{
-//zend_printf("   {{%d,%d}}\n", spot->start, spot->len);
-										pspot->start = spot->start;
-										pspot->len = spot->len;
-										pspot++;
-									}
-									panswer++;
-								}
-							}
-*/
-/*
-							if(fp_answers)
-							{
-								if(answer_binbuff)
-									fwrite((const void *) answer_binbuff, 1, answer_binsize, fp_answers);
-								fclose(fp_answers);
-							}
-							if(fp_spots)
-							{
-								if(spot_binbuff)
-									fwrite((const void *) spot_binbuff, 1, spot_binsize, fp_spots);
-								fclose(fp_spots);
-							}
-*/
-//						}
-//
-//						if(answer_binbuff)
-//							EFREE(answer_binbuff);
-//						if(spot_binbuff)
-//							EFREE(spot_binbuff);
-
-// add_assoc_double(qp3_parm->zresult, (char *) "time_writeCache", stopChrono(time_writeCache));
-
-						// free the tree
-//						freetree(qp3_parm->query);
 					}
+
 					if(conn)
 						delete conn;
 				}

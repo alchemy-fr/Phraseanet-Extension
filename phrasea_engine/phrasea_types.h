@@ -59,7 +59,7 @@ enum
 
 enum
 {
-	PHRASEA_MULTIDOC_DOCONLY = 0, PHRASEA_MULTIDOC_REGONLY = 1
+	PHRASEA_MULTIDOC_DOCONLY = 0, PHRASEA_MULTIDOC_REGONLY = 1, PHRASEA_MULTIDOC_ALL = 2
 };
 
 enum
@@ -198,8 +198,9 @@ public:
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> answers;
 	int nleaf;
 	double time_C;
+	double time_connect, time_createtmp, time_inserttmp;
 	double time_sqlQuery, time_sqlStore, time_sqlFetch;
-	int n;
+//	int n;
 	union
 	{
 		struct

@@ -200,7 +200,7 @@ ZEND_FUNCTION(phrasea_query2)
 	SQLRES res(epublisher);
 
 	// replace list of 'local' collections  (base_ids) by list of 'distant' collections (coll ids)
-	if(Z_TYPE_PP(&zcolllist) == IS_ARRAY)
+	if(Z_TYPE_P(zcolllist) == IS_ARRAY)
 	{
 		// fill the distant_coll_id to local_base_id map
 		for(int i = 0; true; i++)
@@ -359,7 +359,33 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 // pthread_mutex_t sqlmutex;
 						CMutex sqlmutex;
 
-						Cquerytree2Parm qp(query, 0, conn, &sqlmutex, return_value, sqltrec, /*t_collmask,*/ pzsortfield, sortmethod, sqlbusiness_c, stemmer, srch_lng_esc);
+						Cquerytree2Parm qp(
+										 query,
+										 'M',				// main thread
+										 0,					// depth 0
+										 conn,
+
+										 (char *)row->field(1, "127.0.0.1"),	// host
+										 atoi(row->field(2, "3306")),	// port
+										 (char *)row->field(5, "root"),			// user
+										 (char *)row->field(6, ""),				// pwd
+										 (char *)row->field(4, "dbox"),			// base
+										 (char *)"_tmpmask",						// tmptable
+
+										 NULL,		// sqltmp
+
+										 &sqlmutex,
+										 return_value,
+										 sqltrec,
+										 /*t_collmask,*/
+										 pzsortfield,
+										 sortmethod,
+										 sqlbusiness_c,
+										 stemmer,
+										 srch_lng_esc,
+										 0				// 0: do not filter on rid
+						);
+
 						if(MYSQL_THREAD_SAFE)
 						{
 #ifdef WIN32

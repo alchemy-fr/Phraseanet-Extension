@@ -14,12 +14,21 @@ void doOperatorPROX(CNODE *n);
 void doOperatorOR(CNODE *n);
 void doOperatorEXCEPT(CNODE *n);
 
+#define SQLFIELD_RID 0
+#define SQLFIELD_CID 1
+#define SQLFIELD_SKEY 2
+#define SQLFIELD_HITSTART 3
+#define SQLFIELD_HITLEN 4
+#define SQLFIELD_IW 5
+#define SQLFIELD_SHA256 6
+
 
 void doOperatorAND3(CNODE *n)
 {
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> ll = n->content.boperator.l->answers;
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> lr = n->content.boperator.r->answers;
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator lastinsert = n->answers.begin();
+
 	while(!ll.empty() && !lr.empty())
 	{
 		CANSWER *al = *(ll.begin());
@@ -70,6 +79,7 @@ void doOperatorOR3(CNODE *n)
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> ll = n->content.boperator.l->answers;
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> lr = n->content.boperator.r->answers;
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator lastinsert = n->answers.begin();
+
 	while(!ll.empty() && !lr.empty())
 	{
 		CANSWER *al = *(ll.begin());
@@ -130,6 +140,7 @@ void doOperatorPROX3(CNODE *n)
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> ll = n->content.boperator.l->answers;
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> lr = n->content.boperator.r->answers;
 	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator lastinsert = n->answers.begin();
+
 	while(!ll.empty() && !lr.empty())
 	{
 		CANSWER *al = *(ll.begin());
@@ -273,12 +284,207 @@ void doOperatorEXCEPT3(CNODE *n)
 	}
 }
 
-THREAD_ENTRYPOINT querytree3(void *_qp)
+void sprintfSQLERR(char **str, const char *format, ...);
+
+
+
+
+void sql_query_public(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
+{
+	qp->sqlmutex->lock();
+
+	CHRONO chrono;
+
+	startChrono(chrono);
+	SQLCONN *conn = new SQLCONN(qp->host, qp->port, qp->user, qp->pwd, qp->base);
+	conn->connect();
+	qp->n->time_connect = stopChrono(chrono);
+
+	startChrono(chrono);
+	conn->query("CREATE TEMPORARY TABLE `_tmpmask` (`coll_id` int(11) NOT NULL, PRIMARY KEY (`coll_id`)) ENGINE=MEMORY");
+	qp->n->time_createtmp = stopChrono(chrono);
+
+	startChrono(chrono);
+	conn->query(qp->sqltmp);		// filltemp
+	qp->n->time_inserttmp = stopChrono(chrono);
+
+	MYSQL *xconn = (MYSQL *)(conn->get_native_conn());
+
+	std::pair <std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
+
+	startChrono(chrono);
+
+	MYSQL_STMT *stmt;
+	if((stmt = mysql_stmt_init(xconn)))
+	{
+		if(mysql_stmt_prepare(stmt, sql, strlen(sql)) == 0)
+		{
+			// Execute the SELECT query
+			if(mysql_stmt_execute(stmt) == 0)
+			{
+				qp->n->time_sqlQuery = stopChrono(chrono);
+
+				// Bind the result buffers for all columns before fetching them
+				MYSQL_BIND bind[5];
+				unsigned long length[5];
+				my_bool is_null[5];
+				my_bool error[5];
+				long int_result[5];
+				unsigned char sha256[65];
+				char skey[201];
+
+				memset(bind, 0, sizeof (bind));
+
+				// every field is int...
+				for(int i = 0; i < 5; i++)
+				{
+					length[i] = 0;
+					is_null[i] = true; // so each not fetched column (not listed in sql) will be null
+					error[i] = false;
+					int_result[i] = 0;
+					// INTEGER COLUMN(S)
+					bind[i].buffer_type = MYSQL_TYPE_LONG;
+					bind[i].buffer = (char *) (&int_result[i]);
+					bind[i].is_null = &is_null[i];
+					bind[i].length = &length[i];
+					bind[i].error = &error[i];
+				}
+				// ... except :
+
+				// sha256 column : 256 bits
+				memset(sha256, 0, sizeof (sha256));
+				bind[SQLFIELD_SHA256-2].buffer_type = MYSQL_TYPE_STRING;
+				bind[SQLFIELD_SHA256-2].buffer_length = 65;
+				bind[SQLFIELD_SHA256-2].buffer = (char *) sha256;
+
+				// skey column : 100 chars utf8
+				memset(skey, 0, sizeof (skey));
+				bind[SQLFIELD_SKEY].buffer_type = MYSQL_TYPE_STRING;
+				bind[SQLFIELD_SKEY].buffer_length = 201;
+				bind[SQLFIELD_SKEY].buffer = (char *) skey;
+
+				// Bind the result buffers
+				if(mysql_stmt_bind_result(stmt, bind) == 0)
+				{
+					bool ok_to_fetch = true;
+					// Now buffer all results to client (optional step)
+					startChrono(chrono);
+					ok_to_fetch = (mysql_stmt_store_result(stmt) == 0);
+					qp->n->time_sqlStore = stopChrono(chrono);
+
+					// fetch results
+					if(ok_to_fetch)
+					{
+						long rid;
+						long lastrid = -1;
+
+						startChrono(chrono);
+						while(mysql_stmt_fetch(stmt) == 0)
+						{
+							rid = int_result[SQLFIELD_RID];
+
+							CANSWER *answer;
+							std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator where;
+							if((answer = new CANSWER()))
+							{
+								answer->rid = rid;
+
+								where = qp->n->answers.find(answer);
+								if(where != qp->n->answers.end())
+								{
+									// this rid already exists
+									delete answer;
+									answer = *where;
+								}
+								else
+								{
+									qp->n->answers.insert(answer);
+
+									// a new rid
+									answer->cid = int_result[SQLFIELD_CID];
+
+									if(!is_null[SQLFIELD_SHA256-2])
+										answer->sha2 = new CSHA(sha256);
+
+									if(!is_null[SQLFIELD_SKEY])
+									{
+										skey[length[SQLFIELD_SKEY]] = '\0';
+										switch(qp->sortMethod)
+										{
+											case SORTMETHOD_STR:
+												answer->sortkey.s = new std::string(skey);
+												break;
+											case SORTMETHOD_INT:
+#ifdef PHP_WIN32
+												answer->sortkey.l = _strtoui64(skey, NULL, 10);
+#else
+												answer->sortkey.l = atoll(skey);
+#endif
+												break;
+										}
+									}
+								}
+							}
+
+							if(!is_null[SQLFIELD_IW] && answer)
+							{
+								CHIT *hit;
+								if(hit = new CHIT(int_result[SQLFIELD_IW]))
+								{
+									if(!(answer->firsthit))
+										answer->firsthit = hit;
+									if(answer->lasthit)
+										answer->lasthit->nexthit = hit;
+									answer->lasthit = hit;
+								}
+							}
+						}
+						qp->n->time_sqlFetch = stopChrono(chrono);
+
+					}
+					else // store error
+					{
+						sprintfSQLERR(sqlerr, "ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+					}
+				}
+				else // bind error
+				{
+					sprintfSQLERR(sqlerr, "ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+				}
+			}
+			else // execute error
+			{
+				sprintfSQLERR(sqlerr, "ERR: line %d : %s<br/>\n", __LINE__, mysql_stmt_error(stmt));
+			}
+		}
+		else // prepare error
+		{
+			sprintfSQLERR(sqlerr, "ERR: line %d : %s\n%s\n", __LINE__, mysql_stmt_error(stmt), sql);
+		}
+
+		mysql_stmt_close(stmt);
+	}
+
+	conn->query("DROP TABLE `_tmpmask`");
+
+
+	conn->close();
+	delete conn;
+
+	qp->sqlmutex->unlock();
+}
+
+
+THREAD_ENTRYPOINT querytree_public(void *_qp)
 {
 	TSRMLS_FETCH();
 
-//	if(MYSQL_THREAD_SAFE)
-//		mysql_thread_init();
+	Cquerytree2Parm *qp = (Cquerytree2Parm *) _qp;
+
+	if(MYSQL_THREAD_SAFE && qp->depth > 0)
+	{
+		mysql_thread_init();
+	}
 
 	char sql[10240];
 	char *p;
@@ -296,12 +502,7 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 #else
 	ATHREAD threadl, threadr;
 #endif
-	Cquerytree2Parm *qp = (Cquerytree2Parm *) _qp;
 
-//	zend_printf("%s (%d) : depth=%d, business='%s' <br/>\n", __FILE__, __LINE__, qp->depth, qp->business);
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-
-	// struct Squerytree2Parm *qp = (Squerytree2Parm *) _qp;
 	sql[0] = '\0';
 	startChrono(chrono_all);
 	if(qp->n)
@@ -379,7 +580,7 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 								);
 					}
 				}
-				qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
+				sql_query_public(sql, qp, &sqlerr);
 				break;
 
 			case PHRASEA_KW_LAST: // last
@@ -416,7 +617,7 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 								, qp->n->content.numparm.v
 								);
 					}
-					qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
+					sql_query_public(sql, qp, &sqlerr);
 				}
 				break;
 
@@ -479,7 +680,7 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 							add_assoc_string(qp->result, (char *) "keyword", plk->kword, true);
 					}
 
-					qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
+					sql_query_public(sql, qp, &sqlerr);
 				}
 				break;
 
@@ -560,7 +761,7 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 								}
 								add_assoc_string(qp->result, (char *) "field", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, true);
 							}
-							qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
+							sql_query_public(sql, qp, &sqlerr);
 						}
 						else
 						{
@@ -621,8 +822,8 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 										*(qp->psortField) = NULL; // !!!!! this special query cancels sort !!!!!
 										// ===== OK =====
 										sprintfSQL(sql, "SELECT record_id, coll_id"
-												// ", NULL AS skey"
-												// ", NULL AS iw"
+												", NULL AS skey"
+												", NULL AS iw"
 												", sha256"
 												" FROM (SELECT sha256, SUM(1) AS n FROM %s GROUP BY sha256 HAVING n>1) AS b"
 												" INNER JOIN record USING(sha256)"
@@ -873,7 +1074,7 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 									}
 								}
 
-								qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
+								sql_query_public(sql, qp, &sqlerr);
 							}
 							else
 							{
@@ -1039,8 +1240,8 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 												);
 									}
 								}
-// zend_printf("SQL2 : %s \n", sql);
-								qp->sqlconn->phrasea_query3(sql, qp, &sqlerr);
+
+								sql_query_public(sql, qp, &sqlerr);
 							}
 							else
 							{
@@ -1060,13 +1261,33 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 			case PHRASEA_OP_AND: // and
 				if(qp->n->content.boperator.l && qp->n->content.boperator.r)
 				{
+					qp->sqlmutex->lock();
+
 					MAKE_STD_ZVAL(objl);
 					MAKE_STD_ZVAL(objr);
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
+					qp->sqlmutex->unlock();
+
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, 'L', qp->depth + 1, qp->sqlconn,
+									 qp->host,
+									 qp->port,
+									 qp->user,
+									 qp->pwd,
+									 qp->base,
+									 qp->tmptable,
+									 qp->sqltmp,
+									 qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, 'R', qp->depth + 1, qp->sqlconn,
+									 qp->host,
+									 qp->port,
+									 qp->user,
+									 qp->pwd,
+									 qp->base,
+									 qp->tmptable,
+									 qp->sqltmp,
+									 qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
@@ -1075,14 +1296,14 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree3,			    // thread function name
+							querytree_public,			    // thread function name
 							(void*)&qpl,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[0]);   // returns the thread identifier
 						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree3,			    // thread function name
+							querytree_public,			    // thread function name
 							(void*)&qpr,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[1]);   // returns the thread identifier
@@ -1090,22 +1311,26 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
 #else
-						THREAD_START(threadl, querytree3, &qpl);
-						THREAD_START(threadr, querytree3, &qpr);
+						THREAD_START(threadl, querytree_public, &qpl);
+						THREAD_START(threadr, querytree_public, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
 #endif
 					}
 					else
 					{
-						querytree3((void *) &qpl);
-						querytree3((void *) &qpr);
+						querytree_public((void *) &qpl);
+						querytree_public((void *) &qpr);
 					}
 
 					if(qp->result)
 					{
+						qp->sqlmutex->lock();
+
 						add_assoc_zval(qp->result, (char *) "lbranch", objl);
 						add_assoc_zval(qp->result, (char *) "rbranch", objr);
+
+						qp->sqlmutex->unlock();
 					}
 
 					CHRONO chrono;
@@ -1127,8 +1352,24 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, 'L', qp->depth + 1, qp->sqlconn,
+									 qp->host,
+									 qp->port,
+									 qp->user,
+									 qp->pwd,
+									 qp->base,
+									 qp->tmptable,
+									 qp->sqltmp,
+									 qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, 'R', qp->depth + 1, qp->sqlconn,
+									 qp->host,
+									 qp->port,
+									 qp->user,
+									 qp->pwd,
+									 qp->base,
+									 qp->tmptable,
+									 qp->sqltmp,
+									 qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
@@ -1137,14 +1378,14 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree3,			    // thread function name
+							querytree_public,			    // thread function name
 							(void*)&qpl,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[0]);   // returns the thread identifier
 						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree3,			    // thread function name
+							querytree_public,			    // thread function name
 							(void*)&qpr,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[1]);   // returns the thread identifier
@@ -1152,22 +1393,26 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
 #else
-						THREAD_START(threadl, querytree3, &qpl);
-						THREAD_START(threadr, querytree3, &qpr);
+						THREAD_START(threadl, querytree_public, &qpl);
+						THREAD_START(threadr, querytree_public, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
 #endif
 					}
 					else
 					{
-						querytree3((void *) &qpl);
-						querytree3((void *) &qpr);
+						querytree_public((void *) &qpl);
+						querytree_public((void *) &qpr);
 					}
 
 					if(qp->result)
 					{
+						qp->sqlmutex->lock();
+
 						add_assoc_zval(qp->result, (char *) "lbranch", objl);
 						add_assoc_zval(qp->result, (char *) "rbranch", objr);
+
+						qp->sqlmutex->unlock();
 					}
 
 					CHRONO chrono;
@@ -1187,8 +1432,24 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, 'L', qp->depth + 1, qp->sqlconn,
+									 qp->host,
+									 qp->port,
+									 qp->user,
+									 qp->pwd,
+									 qp->base,
+									 qp->tmptable,
+									 qp->sqltmp,
+									 qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, 'R', qp->depth + 1, qp->sqlconn,
+									 qp->host,
+									 qp->port,
+									 qp->user,
+									 qp->pwd,
+									 qp->base,
+									 qp->tmptable,
+									 qp->sqltmp,
+									 qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
@@ -1197,14 +1458,14 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree3,			    // thread function name
+							querytree_public,			    // thread function name
 							(void*)&qpl,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[0]);   // returns the thread identifier
 						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree3,			    // thread function name
+							querytree_public,			    // thread function name
 							(void*)&qpr,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[1]);   // returns the thread identifier
@@ -1212,22 +1473,26 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
 #else
-						THREAD_START(threadl, querytree3, &qpl);
-						THREAD_START(threadr, querytree3, &qpr);
+						THREAD_START(threadl, querytree_public, &qpl);
+						THREAD_START(threadr, querytree_public, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
 #endif
 					}
 					else
 					{
-						querytree3((void *) &qpl);
-						querytree3((void *) &qpr);
+						querytree_public((void *) &qpl);
+						querytree_public((void *) &qpr);
 					}
 
 					if(qp->result)
 					{
+						qp->sqlmutex->lock();
+
 						add_assoc_zval(qp->result, (char *) "lbranch", objl);
 						add_assoc_zval(qp->result, (char *) "rbranch", objr);
+
+						qp->sqlmutex->unlock();
 					}
 
 					CHRONO chrono;
@@ -1246,8 +1511,24 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 					array_init(objl);
 					array_init(objr);
 
-					Cquerytree2Parm qpl(qp->n->content.boperator.l, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
-					Cquerytree2Parm qpr(qp->n->content.boperator.r, qp->depth + 1, qp->sqlconn, qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng);
+					Cquerytree2Parm qpl(qp->n->content.boperator.l, 'L', qp->depth + 1, qp->sqlconn,
+									 qp->host,
+									 qp->port,
+									 qp->user,
+									 qp->pwd,
+									 qp->base,
+									 qp->tmptable,
+									 qp->sqltmp,
+									 qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+					Cquerytree2Parm qpr(qp->n->content.boperator.r, 'R', qp->depth + 1, qp->sqlconn,
+									 qp->host,
+									 qp->port,
+									 qp->user,
+									 qp->pwd,
+									 qp->base,
+									 qp->tmptable,
+									 qp->sqltmp,
+									 qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
@@ -1256,14 +1537,14 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 						hThreadArray[0] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree3,			    // thread function name
+							querytree_public,			    // thread function name
 							(void*)&qpl,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[0]);   // returns the thread identifier
 						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree3			    // thread function name
+							querytree_public			    // thread function name
 							(void*)&qpr,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[1]);   // returns the thread identifier
@@ -1271,22 +1552,26 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 						CloseHandle(hThreadArray[0]);
 						CloseHandle(hThreadArray[1]);
 #else
-						THREAD_START(threadl, querytree3, &qpl);
-						THREAD_START(threadr, querytree3, &qpr);
+						THREAD_START(threadl, querytree_public, &qpl);
+						THREAD_START(threadr, querytree_public, &qpr);
 						THREAD_JOIN(threadl);
 						THREAD_JOIN(threadr);
 #endif
 					}
 					else
 					{
-						querytree3((void *) &qpl);
-						querytree3((void *) &qpr);
+						querytree_public((void *) &qpl);
+						querytree_public((void *) &qpr);
 					}
 
 					if(qp->result)
 					{
+						qp->sqlmutex->lock();
+
 						add_assoc_zval(qp->result, (char *) "lbranch", objl);
 						add_assoc_zval(qp->result, (char *) "rbranch", objr);
+
+						qp->sqlmutex->unlock();
 					}
 
 					CHRONO chrono;
@@ -1300,12 +1585,19 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 
 		}
 
-
 		if(qp->result)
 		{
-			add_assoc_double(qp->result, (char *) "time_all", stopChrono(chrono_all));
+			qp->sqlmutex->lock();
+
+			if(qp->n->time_connect != -1)
+				add_assoc_double(qp->result, (char *) "time_connect", qp->n->time_connect);
+			if(qp->n->time_createtmp != -1)
+				add_assoc_double(qp->result, (char *) "time_createtmp", qp->n->time_createtmp);
+			if(qp->n->time_inserttmp != -1)
+				add_assoc_double(qp->result, (char *) "time_inserttmp", qp->n->time_inserttmp);
 			if(qp->n->time_C != -1)
 				add_assoc_double(qp->result, (char *) "time_C", qp->n->time_C);
+
 			if(sql[0] != '\0')
 			{
 				add_assoc_string(qp->result, (char *) "sql", sql, true);
@@ -1320,7 +1612,12 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 				add_assoc_double(qp->result, (char *) "time_sqlStore", qp->n->time_sqlStore);
 			if(qp->n->time_sqlFetch != -1)
 				add_assoc_double(qp->result, (char *) "time_sqlFetch", qp->n->time_sqlFetch);
+
 			add_assoc_long(qp->result, (char *) "nbanswers", qp->n->answers.size());
+
+			add_assoc_double(qp->result, (char *) "time_all", stopChrono(chrono_all));
+
+			qp->sqlmutex->unlock();
 		}
 		if(sqlerr)
 			EFREE(sqlerr);
@@ -1330,11 +1627,12 @@ THREAD_ENTRYPOINT querytree3(void *_qp)
 		// zend_printf("querytree : null node\n");
 	}
 
-	if(MYSQL_THREAD_SAFE)
+	if(MYSQL_THREAD_SAFE && qp->depth > 0)
 	{
-//		mysql_thread_end();
+		mysql_thread_end();
 		THREAD_EXIT(0);
 	}
+
 	return 0;
 }
 

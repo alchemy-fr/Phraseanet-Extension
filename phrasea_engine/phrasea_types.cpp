@@ -178,6 +178,8 @@ CNODE::CNODE(int type)
 	this->isempty = false;
 	this->time_C = -1;
 	this->time_sqlQuery = this->time_sqlStore = this->time_sqlFetch = -1;
-	this->n = 0;
+	this->time_connect = this->time_createtmp = this->time_inserttmp = -1;
+
+//	this->n = 0;
 }
 

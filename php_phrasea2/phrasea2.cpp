@@ -57,6 +57,7 @@ static zend_function_entry phrasea2_functions[] = {
 	PHP_FE(phrasea_clear_cache, NULL)
 	PHP_FE(phrasea_close_session, NULL)
 	PHP_FE(phrasea_query2, NULL)
+	PHP_FE(phrasea_highlight, NULL)
 	PHP_FE(phrasea_public_query, NULL)
 	PHP_FE(phrasea_fetch_results, NULL)
 	PHP_FE(phrasea_utf8_convert_to, NULL)
@@ -137,6 +138,7 @@ PHP_MINIT_FUNCTION(phrasea2)
 
 	REGISTER_LONG_CONSTANT("PHRASEA_MULTIDOC_DOCONLY", PHRASEA_MULTIDOC_DOCONLY, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("PHRASEA_MULTIDOC_REGONLY", PHRASEA_MULTIDOC_REGONLY, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("PHRASEA_MULTIDOC_ALL", PHRASEA_MULTIDOC_ALL, CONST_CS | CONST_PERSISTENT);
 
 	REGISTER_LONG_CONSTANT("PHRASEA_ORDER_DESC", PHRASEA_ORDER_DESC, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("PHRASEA_ORDER_ASC", PHRASEA_ORDER_ASC, CONST_CS | CONST_PERSISTENT);
@@ -214,6 +216,11 @@ PHP_MINFO_FUNCTION(phrasea2)
 	else
 		php_info_print_table_row(2, "MYSQL thead safe", "NO");
 
+#ifdef ZTS
+		php_info_print_table_row(2, "PHP thread safe", "YES");
+#else
+		php_info_print_table_row(2, "PHP thread safe", "NO");
+#endif
 //	php_info_print_table_row(2, "NO PostgreSQL support", "");
 
 #ifdef MYSQLENCODE
