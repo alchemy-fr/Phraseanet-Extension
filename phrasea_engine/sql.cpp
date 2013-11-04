@@ -61,6 +61,11 @@ SQLCONN::~SQLCONN()
 //		xmlFreeDoc(this->DOMThesaurus);
 }
 
+unsigned long SQLCONN::thread_id()
+{
+	return(mysql_thread_id(&(this->mysql_connx)));
+}
+
 
 bool SQLCONN::connect()
 {
@@ -384,7 +389,9 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 	MYSQL *xconn = (MYSQL *)(qp->sqlconn->get_native_conn());
 	CHRONO chrono;
 
-	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
+// zend_printf("%s[%d] sql=%s found \n", __FILE__, __LINE__, sql);
+
+std::pair <std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
 
 	startChrono(chrono);
 
@@ -461,23 +468,33 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 						long lastrid = -1;
 
 						startChrono(chrono);
+//		qp->n->n = 0;
 						while(mysql_stmt_fetch(stmt) == 0)
 						{
+//		qp->n->n++;
+
 							rid = int_result[SQLFIELD_RID];
 
 							CANSWER *answer;
+							std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator where;
 							if((answer = new CANSWER()))
 							{
 								answer->rid = rid;
-								insert_ret = qp->n->answers.insert(answer);
-								if(insert_ret.second == false)
+
+//								insert_ret = qp->n->answers.insert(answer);
+//								if(insert_ret.second == false)
+								where = qp->n->answers.find(answer);
+								if(where != qp->n->answers.end())
 								{
+// zend_printf("%s[%d] rid=%ld found \n", __FILE__, __LINE__, rid);
 									// this rid already exists
 									delete answer;
-									answer = *(insert_ret.first);
+									answer = *where;
 								}
 								else
 								{
+									qp->n->answers.insert(answer);
+// zend_printf("%s[%d] rid=%ld inserted \n", __FILE__, __LINE__, rid);
 									// n->nbranswers++;
 
 									// a new rid
@@ -532,6 +549,7 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 							}
 						}
 						qp->n->time_sqlFetch = stopChrono(chrono);
+
 					}
 					else // store error
 					{
@@ -558,4 +576,7 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 	}
 //	mysql_thread_end();
 }
+
+// send a 'leaf' query to a databox
+// results are returned into the node (qp->n)
 
