@@ -137,38 +137,11 @@ void CANSWER::freeHits()
 	this->lasthit = NULL;
 }
 
-//		void CANSWER::printSpots()
-//		{
-//			zend_printf("@%p : rid=%d , firsthit=%p , lasthit=%p\n\tSPOTS :", this, this->rid, this->firsthit, this->lasthit);
-//			for(CSPOT *s=this->firstspot; s; s=s->_nextspot)
-//				zend_printf(" [%p: %d, %d -&gt;%p]", s, s->start, s->len, s->_nextspot);
-//			zend_printf("\n\tHITS :");
-//			for(CHIT *h=this->firsthit; h; h=h->nexthit)
-//				zend_printf(" [%p: %d, %d -&gt;%p]", h, h->iws, h->iwe, h->nexthit);
-//			zend_printf("\n");
-//		}
-
-
 
 bool PCANSWERCOMPRID_DESC::operator() (const PCANSWER& lhs, const PCANSWER& rhs) const
 {
 	return lhs->rid > rhs->rid;
 }
-
-/*
-bool PCANSWERCOMP::operator() (const PCANSWER& lhs, const PCANSWER& rhs) const
-{
-//			return lhs->rid > rhs->rid;
-	if(lhs->sorttyp != rhs->sorttyp)
-		return false;
-	else if(lhs->sorttyp==CANSWER::SORTTYPE_INT || lhs->sorttyp==CANSWER::SORTTYPE_DATE)
-		return(lhs->sortkey.l > rhs->sortkey.l);
-	else if(lhs->sorttyp==CANSWER::SORTTYPE_TEXT && lhs->sortkey.s && rhs->sortkey.s)
-		return( (lhs->sortkey.s->compare(*(rhs->sortkey.s))) < 0 );
-	else
-		return lhs->rid > rhs->rid;
-}
-*/
 
 
 CNODE::CNODE(int type)

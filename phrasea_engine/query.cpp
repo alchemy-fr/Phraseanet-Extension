@@ -164,12 +164,12 @@ ZEND_FUNCTION(phrasea_query2)
 		{
 			sqlbusiness_strm << "')";
 			std::string sqlbusiness_str = sqlbusiness_strm.str();
-			if(sqlbusiness_c = (char *)EMALLOC(sqlbusiness_str.length()+1))
+			if( (sqlbusiness_c = (char *)EMALLOC(sqlbusiness_str.length()+1)) != NULL)
 				memcpy(sqlbusiness_c, sqlbusiness_str.c_str(), sqlbusiness_str.length()+1);
 		}
 		else
 		{
-			if(sqlbusiness_c = (char *)EMALLOC(1))
+			if( (sqlbusiness_c = (char *)EMALLOC(1)) != NULL)
 				sqlbusiness_c[0] = '\0';
 		}
 	}
@@ -287,7 +287,6 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 							long coll_id  = atol(rowtmp1->field(0, "0"));
 							unsigned long mask_xor = atol(rowtmp1->field(1, "0"));
 							unsigned long mask_and = atol(rowtmp1->field(2, "0"));
-//		zend_printf("%d %d %d \n", coll_id, mask_xor, mask_and);
 							t_collmask[coll_id] = COLLMASK(mask_xor, mask_and);;
 						}
 
@@ -538,7 +537,6 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 												current_cid = answer->cid;
 											}
 
-//zend_printf(" [[rid %d]]\n", answer->rid);
 											panswer->rid = answer->rid;
 											panswer->bid = current_bid;
 											panswer->spots_index = spot_index;
@@ -546,7 +544,6 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 											spot_index += answer->nspots;
 											for(spot = answer->firstspot; spot; spot = spot->_nextspot)
 											{
-//zend_printf("   {{%d,%d}}\n", spot->start, spot->len);
 												pspot->start = spot->start;
 												pspot->len = spot->len;
 												pspot++;
@@ -570,7 +567,6 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 												current_cid = answer->cid;
 											}
 
-//zend_printf(" [[rid %d]]\n", answer->rid);
 											panswer->rid = answer->rid;
 											panswer->bid = current_bid;
 											panswer->spots_index = spot_index;
@@ -578,7 +574,6 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 											spot_index += answer->nspots;
 											for(spot = answer->firstspot; spot; spot = spot->_nextspot)
 											{
-//zend_printf("   {{%d,%d}}\n", spot->start, spot->len);
 												pspot->start = spot->start;
 												pspot->len = spot->len;
 												pspot++;

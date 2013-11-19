@@ -55,7 +55,6 @@ ZEND_FUNCTION(phrasea_highlight)
 	char *zsrchlng = NULL;
 	int zsrchlnglen;
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 	switch(ZEND_NUM_ARGS())
 	{
 		case 4: // sbid, rid, qarray, lng
@@ -79,8 +78,6 @@ ZEND_FUNCTION(phrasea_highlight)
 		RETURN_FALSE;
 
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-
 	SQLCONN *epublisher = PHRASEA2_G(epublisher);
 	if(!epublisher)
 	{
@@ -88,9 +85,6 @@ ZEND_FUNCTION(phrasea_highlight)
 		//		zend_throw_exception(spl_ce_LogicException, "No connection set (check that phrasea_conn(...) returned true).", 0 TSRMLS_CC);
 		RETURN_FALSE;
 	}
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-
-
 
 	array_init(return_value);
 
@@ -105,12 +99,7 @@ ZEND_FUNCTION(phrasea_highlight)
 	MAKE_STD_ZVAL(zanswers);
 	array_init(zanswers);
 
-
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 	SQLRES res(epublisher);
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 
 	// get the adresse of the distant database
 	std::stringstream sql;
@@ -120,18 +109,13 @@ ZEND_FUNCTION(phrasea_highlight)
 		add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str())), true);
 	if(res.query((char *) (sql.str().c_str())))
 	{
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 		SQLROW *row = res.fetch_row();
 		if(row)
 		{
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 			// on se connecte sur la base distante
 			SQLCONN *conn = new SQLCONN(row->field(1, "127.0.0.1"), atoi(row->field(2, "3306")), row->field(5, "root"), row->field(6, ""), row->field(4, "dbox"));
 			if(conn && conn->connect())
 			{
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-
-
 				struct sb_stemmer *stemmer = NULL;
 				// SECURITY : escape search_lng
 				char srch_lng[33];
@@ -183,7 +167,6 @@ ZEND_FUNCTION(phrasea_highlight)
 									srch_lng_esc,						// srch_lng_esc
 									zrid			// new : only this rid
 						);
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 
 				querytree2((void *) &qp);
 
@@ -349,12 +332,12 @@ ZEND_FUNCTION(phrasea_public_query)
 	{
 		sqlbusiness_strm << "')";
 		std::string sqlbusiness_str = sqlbusiness_strm.str();
-		if(sqlbusiness_c = (char *)EMALLOC(sqlbusiness_str.length()+1))
+		if( (sqlbusiness_c = (char *)EMALLOC(sqlbusiness_str.length()+1)) != NULL)
 			memcpy(sqlbusiness_c, sqlbusiness_str.c_str(), sqlbusiness_str.length()+1);
 	}
 	else
 	{
-		if(sqlbusiness_c = (char *)EMALLOC(1))
+		if( (sqlbusiness_c = (char *)EMALLOC(1)) != NULL)
 			sqlbusiness_c[0] = '\0';
 	}
 
@@ -391,27 +374,20 @@ ZEND_FUNCTION(phrasea_public_query)
 		zend_hash_move_forward_ex(barray_hash, &bpointer))
 	{
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 		if(Z_TYPE_PP(zbase) != IS_ARRAY)
 			continue;
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 		zval **zsbid;
 		if(zend_hash_find(Z_ARRVAL_PP(zbase), "sbas_id", sizeof("sbas_id"), (void **)&zsbid) != SUCCESS || Z_TYPE_PP(zsbid) != IS_LONG)
 			continue;
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 		zval **zcolllist;
 		if(zend_hash_find(Z_ARRVAL_PP(zbase), "searchcoll", sizeof("searchcoll"), (void **)&zcolllist) != SUCCESS || Z_TYPE_PP(zcolllist) != IS_ARRAY)
 			continue;
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 		zval **zqarray;
 		if(zend_hash_find(Z_ARRVAL_PP(zbase), "arrayq", sizeof("arrayq"), (void **)&zqarray) != SUCCESS || Z_TYPE_PP(zqarray) != IS_ARRAY)
 			continue;
-
-// zend_printf("%s[%d] zbid=%ld \n", __FILE__, __LINE__, Z_LVAL_PP(zsbid) );
-
 
 		zval *zquery = NULL;
 		if(zdebug)
@@ -441,8 +417,6 @@ ZEND_FUNCTION(phrasea_public_query)
 					NULL
 		};
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-
 		CHRONO time_sbas;
 		startChrono(time_sbas);
 
@@ -450,11 +424,8 @@ ZEND_FUNCTION(phrasea_public_query)
 
 		size_t n = phrasea_query_parm.query->answers.size();
 
-// zend_printf("%s[%d] qp3_parm.query->answers.size() = %ld \n", __FILE__, __LINE__, n);
-
 		if(n < record_offset)
 		{
-// zend_printf("%s[%d] full sbas (n=%ld) ignored, record_offset=%ld -> %ld \n", __FILE__, __LINE__, n, record_offset, record_offset - n);
 			record_offset -= n;
 		}
 		else
@@ -471,12 +442,10 @@ ZEND_FUNCTION(phrasea_public_query)
 				answer = *(ipmset);
 				if(record_offset > 0)
 				{
-// zend_printf("%s[%d] sbid=%ld, cid=%ld, bid=%ld, rid=%ld (offset=%ld -> ignored) \n", __FILE__, __LINE__, qp3_parm.sbasid, answer->cid, answer->bid, answer->rid, record_offset );
 					record_offset--;
 				}
 				else
 				{
-// zend_printf("%s[%d] sbid=%ld, cid=%ld, bid=%ld, rid=%ld (result %ld) \n", __FILE__, __LINE__, qp3_parm.sbasid, answer->cid, answer->bid, answer->rid, record_count );
 					zval *zanswer;
 					MAKE_STD_ZVAL(zanswer);
 					array_init(zanswer);
@@ -503,7 +472,6 @@ ZEND_FUNCTION(phrasea_public_query)
 
 		if(record_count <= 0)
 		{
-// zend_printf("%s[%d] count done \n", __FILE__, __LINE__ );
 			break;
 		}
 	}
@@ -513,7 +481,6 @@ ZEND_FUNCTION(phrasea_public_query)
 
 	add_assoc_zval(return_value, (char *) "results", zanswers);
 
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 
 	if(sqlbusiness_c)
 		EFREE(sqlbusiness_c);
@@ -535,7 +502,6 @@ void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm)
 	// replace list of 'local' collections  (base_ids) by list of 'distant' collections (coll ids)
 	if(Z_TYPE_PP(&(qp3_parm->zcolllist)) == IS_ARRAY)
 	{
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 		// fill the distant_coll_id to local_base_id map
 		for(int i = 0; true; i++)
 		{
@@ -557,7 +523,6 @@ void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm)
 
 		if(t_collid.size() > 0)
 		{
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 			CHRONO time_connect;
 			startChrono(time_connect);
 
@@ -571,7 +536,6 @@ void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm)
 
 			if(qp3_parm->res->query((char *) (sql.str().c_str())))
 			{
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 				SQLROW *row = qp3_parm->res->fetch_row();
 				if(row)
 				{
@@ -579,7 +543,6 @@ void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm)
 						add_assoc_double(qp3_parm->zquery, (char *) "time_select", stopChrono(time_connect));
 
 					startChrono(time_connect);
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
 					// on se connecte sur la base distante
 					SQLCONN *conn = new SQLCONN(row->field(1, "127.0.0.1"), atoi(row->field(2, "3306")), row->field(5, "root"), row->field(6, ""), row->field(4, "dbox"));
 					if(conn && conn->connect())

@@ -17,10 +17,10 @@ void doOperatorEXCEPT(CNODE *n);
 #define SQLFIELD_RID 0
 #define SQLFIELD_CID 1
 #define SQLFIELD_SKEY 2
-#define SQLFIELD_HITSTART 3
-#define SQLFIELD_HITLEN 4
-#define SQLFIELD_IW 5
-#define SQLFIELD_SHA256 6
+// #define SQLFIELD_HITSTART 3
+// #define SQLFIELD_HITLEN 4
+#define SQLFIELD_IW 3
+#define SQLFIELD_SHA256 4
 
 
 void doOperatorAND3(CNODE *n)
@@ -174,14 +174,11 @@ void doOperatorPROX3(CNODE *n)
 			{
 				for(hitr = ar->firsthit; hitr; hitr = hitr->nexthit)
 				{
-//zend_printf("al->rid=%d, ar->rid=%d, hitl=[s:%d, e:%d], hitr=[s:%d, e:%d]\n", al->rid, ar->rid, hitl->iws, hitl->iwe, hitr->iws, hitr->iwe);
 					if(n->type == PHRASEA_OP_BEFORE || n->type == PHRASEA_OP_NEAR)
 					{
 						prox0 = hitr->iws - hitl->iwe;
-//zend_printf("  (%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
 						if(prox0 >= 1 && prox0 <= prox + 1)
 						{
-//zend_printf("    new CHIT(%d, %d)\n", hitl->iws, hitr->iwe);
 							// if near, allocate a new hit for 'al'
 							if((hit = new CHIT(hitl->iws, hitr->iwe)))
 							{
@@ -196,7 +193,6 @@ void doOperatorPROX3(CNODE *n)
 					if(n->type == PHRASEA_OP_AFTER || n->type == PHRASEA_OP_NEAR)
 					{
 						prox0 = hitl->iws - hitr->iwe;
-// zend_printf("  (%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
 						if(prox0 >= 1 && prox0 <= prox + 1)
 						{
 							// if near, allocate a new hit for 'al'
@@ -353,9 +349,9 @@ void sql_query_public(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 
 				// sha256 column : 256 bits
 				memset(sha256, 0, sizeof (sha256));
-				bind[SQLFIELD_SHA256-2].buffer_type = MYSQL_TYPE_STRING;
-				bind[SQLFIELD_SHA256-2].buffer_length = 65;
-				bind[SQLFIELD_SHA256-2].buffer = (char *) sha256;
+				bind[SQLFIELD_SHA256].buffer_type = MYSQL_TYPE_STRING;
+				bind[SQLFIELD_SHA256].buffer_length = 65;
+				bind[SQLFIELD_SHA256].buffer = (char *) sha256;
 
 				// skey column : 100 chars utf8
 				memset(skey, 0, sizeof (skey));
@@ -403,7 +399,7 @@ void sql_query_public(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 									// a new rid
 									answer->cid = int_result[SQLFIELD_CID];
 
-									if(!is_null[SQLFIELD_SHA256-2])
+									if(!is_null[SQLFIELD_SHA256])
 										answer->sha2 = new CSHA(sha256);
 
 									if(!is_null[SQLFIELD_SKEY])
@@ -429,7 +425,7 @@ void sql_query_public(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 							if(!is_null[SQLFIELD_IW] && answer)
 							{
 								CHIT *hit;
-								if(hit = new CHIT(int_result[SQLFIELD_IW]))
+								if( (hit = new CHIT(int_result[SQLFIELD_IW])) != NULL)
 								{
 									if(!(answer->firsthit))
 										answer->firsthit = hit;
@@ -1624,7 +1620,7 @@ THREAD_ENTRYPOINT querytree_public(void *_qp)
 	}
 	else
 	{
-		// zend_printf("querytree : null node\n");
+		//  null node
 	}
 
 	if(MYSQL_THREAD_SAFE && qp->depth > 0)

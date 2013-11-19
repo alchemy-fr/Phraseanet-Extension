@@ -113,7 +113,7 @@ spl_ce_UnexpectedValueException;
 				if((fseek(fp_answers, answer_index0 * sizeof (CACHE_ANSWER), SEEK_SET)) == 0)
 				{
 					unsigned int nanswers_toread = (unsigned int) nanswers; // WARNING : long to int
-					if(panswer = (CACHE_ANSWER *) EMALLOC(nanswers_toread * sizeof (CACHE_ANSWER)))
+					if( (panswer = (CACHE_ANSWER *) EMALLOC(nanswers_toread * sizeof (CACHE_ANSWER))) != NULL)
 					{
 						nanswers_incache = fread(panswer, sizeof (CACHE_ANSWER), nanswers_toread, fp_answers);
 
@@ -133,7 +133,7 @@ spl_ce_UnexpectedValueException;
 								for(unsigned int a = 0; a < nanswers_incache; a++)
 									nspots_toread += panswer[a].nspots;
 
-								if(pspot = (CACHE_SPOT *) EMALLOC(nspots_toread * sizeof (CACHE_SPOT)))
+								if( (pspot = (CACHE_SPOT *) EMALLOC(nspots_toread * sizeof (CACHE_SPOT))) != NULL)
 								{
 									nspots_incache = fread(pspot, sizeof (CACHE_SPOT), nspots_toread, fp_spots);
 								}
@@ -178,7 +178,7 @@ spl_ce_UnexpectedValueException;
 										SQLROW *row;
 										char *xml;
 										startChrono(chrono);
-										if(row = res.fetch_row())
+										if( (row = res.fetch_row()) != NULL)
 										{
 											add_assoc_double(zanswer, (char *) "time_xmlFetch", stopChrono(chrono));
 
@@ -196,14 +196,14 @@ spl_ce_UnexpectedValueException;
 											// size the highlighted xml
 											unsigned int nspots = panswer[a].nspots;
 
-											if(xml = (char *) EMALLOC(xmlsize + (nspots * (markin_l + markout_l))))
+											if( (xml = (char *) EMALLOC(xmlsize + (nspots * (markin_l + markout_l)))) != NULL)
 											{
 												memcpy(xml, row->field(0, ""), xmlsize);
 
 												if(nspots > 0 && markin && markout)
 												{
 													HBAL *h;
-													if(h = (HBAL *) EMALLOC(2 * nspots * sizeof (HBAL)))
+													if( (h = (HBAL *) EMALLOC(2 * nspots * sizeof (HBAL))) != NULL)
 													{
 														// sort spots descending
 														unsigned int s, ss;
