@@ -1,3 +1,8 @@
+1.21.2.1
+fix : phrasea_highlight() returned false for query "last"
+code clean
+fix many warnings "if(x=malloc())" => if((x=malloc())!=null)"
+
 1.21.2.0
 add function "phrasea_public_query()"
 add function "phrasea_highlight()"

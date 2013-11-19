@@ -133,7 +133,7 @@ ZEND_FUNCTION(phrasea_create_session)
 			if(CACHE_SESSION * tmp_session = new CACHE_SESSION(sesid, epublisher))
 			{
 				CACHE_BASE *cache_base = NULL;
-				while(row = res.fetch_row())
+				while( (row = res.fetch_row()) != NULL)
 				{
 					basid = atol(row->field(0, "0"));
 					sbas_id = atol(row->field(7, "0"));

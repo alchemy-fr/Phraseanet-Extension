@@ -124,7 +124,7 @@ CNODE *qtree2tree(zval **root, int depth)
 		// the first elem (num) gives the type of node
 		if(zend_hash_index_find(HASH_OF(*root), 0, (void **) &tmp1) == SUCCESS && Z_TYPE_PP(tmp1) == IS_LONG)
 		{
-			if(n = new CNODE(Z_LVAL_P(*tmp1)))
+			if( (n = new CNODE(Z_LVAL_P(*tmp1))) != NULL )
 			{
 				switch(n->type)
 				{
@@ -134,11 +134,11 @@ CNODE *qtree2tree(zval **root, int depth)
 						{
 							if(zend_hash_index_find(HASH_OF(*root), i, (void **) &tmp1) == SUCCESS && Z_TYPE_PP(tmp1) == IS_STRING)
 							{
-								if(k = (KEYWORD *) (EMALLOC(sizeof (KEYWORD))))
+								if( (k = (KEYWORD *) (EMALLOC(sizeof (KEYWORD)))) != NULL)
 								{
 								//	k->kword = ESTRDUP(Z_STRVAL_P(*tmp1));
 									int l = Z_STRLEN(**tmp1);
-									if(k->kword = (char *)EMALLOC(l+1))
+									if( (k->kword = (char *)EMALLOC(l+1)) != NULL)
 									{
 										memcpy(k->kword, Z_STRVAL(**tmp1), l+1);
 									}
@@ -397,10 +397,6 @@ void doOperatorPROX(CNODE *n)
 			}
 			// 'ar' is empty
 			ar->lastspot = NULL;
-//for(CSPOT *cc=al->firstspot; cc; cc=cc->_nextspot)
-//{
-//	zend_printf("spot(%d-%d)\n", cc->start, cc->len);
-//}
 
 			// keep a ptr on hits of 'al'
 			hitl = al->firsthit;
@@ -412,14 +408,11 @@ void doOperatorPROX(CNODE *n)
 			{
 				for(hitr = ar->firsthit; hitr; hitr = hitr->nexthit)
 				{
-//zend_printf("al->rid=%d, ar->rid=%d, hitl=[s:%d, e:%d], hitr=[s:%d, e:%d]\n", al->rid, ar->rid, hitl->iws, hitl->iwe, hitr->iws, hitr->iwe);
 					if(n->type == PHRASEA_OP_BEFORE || n->type == PHRASEA_OP_NEAR)
 					{
 						prox0 = hitr->iws - hitl->iwe;
-//zend_printf("  (%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
 						if(prox0 >= 1 && prox0 <= prox + 1)
 						{
-//zend_printf("    new CHIT(%d, %d)\n", hitl->iws, hitr->iwe);
 							// if near, allocate a new hit for 'al'
 							if((hit = new CHIT(hitl->iws, hitr->iwe)))
 							{
@@ -434,7 +427,6 @@ void doOperatorPROX(CNODE *n)
 					if(n->type == PHRASEA_OP_AFTER || n->type == PHRASEA_OP_NEAR)
 					{
 						prox0 = hitl->iws - hitr->iwe;
-// zend_printf("  (%d) : prox0=%d (prox=%d)\n", __LINE__, prox0, prox);
 						if(prox0 >= 1 && prox0 <= prox + 1)
 						{
 							// if near, allocate a new hit for 'al'
@@ -556,9 +548,6 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 #endif
 	Cquerytree2Parm *qp = (Cquerytree2Parm *) _qp;
 
-//	zend_printf("%s (%d) : depth=%d, business='%s' <br/>\n", __FILE__, __LINE__, qp->depth, qp->business);
-// zend_printf("%s[%d] \n", __FILE__, __LINE__);
-
 	// struct Squerytree2Parm *qp = (Squerytree2Parm *) _qp;
 	sql[0] = '\0';
 	startChrono(chrono_all);
@@ -664,6 +653,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 							" FROM record WHERE record_id='%ld'"
 							, qp->rid
 							);
+					qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 				}
 				else
 				{
@@ -1395,7 +1385,6 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 													);
 										}
 									}
-// zend_printf("SQL2 : %s \n", sql);
 									qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 								}
 							}
@@ -1745,7 +1734,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 	}
 	else
 	{
-		// zend_printf("querytree : null node\n");
+		//  null node
 	}
 
 	if(MYSQL_THREAD_SAFE)
@@ -1796,7 +1785,6 @@ void freetree(CNODE *n)
 				break;
 		}
 		delete n;
-		// zend_printf("n ");
 	}
 }
 
