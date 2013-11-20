@@ -38,7 +38,7 @@ SQLCONN::SQLCONN(const char *host, unsigned int port, const char *user, const ch
 
 	// this->mysql_conn = NULL;
 	int l = strlen(host) + 1 + 65 + 1 + (dbname ? strlen(dbname) : 0);
-	if(this->ukey = (char *) EMALLOC(l))
+	if( (this->ukey = (char *) EMALLOC(l)) != NULL)
 		sprintf(this->ukey, "%s_%u_%s", host, (unsigned int) port, (dbname ? dbname : ""));
 }
 
@@ -59,6 +59,11 @@ SQLCONN::~SQLCONN()
 //		xmlXPathFreeContext(this->XPathCtx_thesaurus);
 //	if(this->DOMThesaurus)
 //		xmlFreeDoc(this->DOMThesaurus);
+}
+
+unsigned long SQLCONN::thread_id()
+{
+	return(mysql_thread_id(&(this->mysql_connx)));
 }
 
 
@@ -206,7 +211,7 @@ bool SQLRES::query(const char *sql)
 			mysql_free_result(this->res);
 			this->res = NULL;
 		}
-		if(this->res = mysql_store_result(&(this->parent_conn->mysql_connx)))
+		if( (this->res = mysql_store_result(&(this->parent_conn->mysql_connx))) != NULL)
 		{
 			// !!!!!!!!!!!!!!!!!!!!! convert from _int64 to int !!!!!!!!!!!!!!!!!
 			this->nrows = (int) mysql_num_rows(this->res);
@@ -266,26 +271,20 @@ const char *SQLROW::field(int n, const char *replaceNULL)
 /*
 void SQLCONN::thesaurus_search(const char *term)
 {
-zend_printf("[%d] term='%s' \n", __LINE__, term);
 	if(!this->DOMThesaurus)
 	{
-zend_printf("[%d] \n", __LINE__);
 		if(!this->stmt_th)
 		{
-zend_printf("[%d] \n", __LINE__);
 			if( this->stmt_th = mysql_stmt_init((MYSQL *)(this->get_native_conn())) )
 			{
-zend_printf("[%d] \n", __LINE__);
 				char *sql = (char *)"SELECT value FROM pref WHERE prop='thesaurus'";
 				if(mysql_stmt_prepare(this->stmt_th, sql, 45) != 0)
 				{
-zend_printf("[%d] \n", __LINE__);
 					mysql_stmt_close(this->stmt_th);
 					this->stmt_th = NULL;
 				}
 			}
 		}
-zend_printf("[%d] \n", __LINE__);
 
 		if(this->thesaurus_buffer == NULL)
 		{
@@ -295,11 +294,9 @@ zend_printf("[%d] \n", __LINE__);
 				return;
 			}
 		}
-zend_printf("[%d] \n", __LINE__);
 
 		if(this->stmt_th)
 		{
-zend_printf("[%d] \n", __LINE__);
 			MYSQL_BIND bindo;
 			my_bool is_null = false;;
 			my_bool error = false;
@@ -315,29 +312,24 @@ zend_printf("[%d] \n", __LINE__);
 
 			if(mysql_stmt_execute(this->stmt_th) == 0)
 			{
-zend_printf("[%d] \n", __LINE__);
 				int row_count = 0;
 
 				int ret = 0;
 
 				if(mysql_stmt_bind_result(this->stmt_th, &bindo) == 0)
 				{
-zend_printf("[%d] \n", __LINE__);
 
 					ret = mysql_stmt_fetch(this->stmt_th);
 #ifdef MYSQL_DATA_TRUNCATED
 					if(ret == MYSQL_DATA_TRUNCATED)
 						ret = 0;		//  will be catched comparing buffer sizes
 #endif
-zend_printf("[%d] l=%d bs=%d ret=%d \n", __LINE__, this->thesaurus_buffer_size, length, ret);
 					if(ret==0 && length > this->thesaurus_buffer_size+1)
 					{
-zend_printf("[%d] \n", __LINE__);
 						// buffer too small, realloc
 						EFREE(this->thesaurus_buffer);
 						if( (this->thesaurus_buffer = (char *)EMALLOC(this->thesaurus_buffer_size = length+1)) )
 						{
-zend_printf("[%d] \n", __LINE__);
 							bindo.length        = 0;
 							bindo.buffer        = (void *)(this->thesaurus_buffer);
 							bindo.buffer_length = this->thesaurus_buffer_size;
@@ -351,9 +343,6 @@ zend_printf("[%d] \n", __LINE__);
 					}
 					if(ret == 0)
 					{
-zend_printf("[%d] \n", __LINE__);
-zend_printf("THESAURUS:\n%s\n", this->thesaurus_buffer);
-
 						this->DOMThesaurus = xmlParseMemory(this->thesaurus_buffer, length);
 						if(this->DOMThesaurus != NULL)
 						{
@@ -369,7 +358,7 @@ zend_printf("THESAURUS:\n%s\n", this->thesaurus_buffer);
 	if(this->XPathCtx_thesaurus)
 	{
 //		"/thesaurus//sy"
-//		xmlXPathEvalExpression((const xmlChar*)"/record/description/*", this->XPathCtx_thesaurus);
+//		xmlXPathEvalExpression((const xmlChar*)("/record/description/" "*"), this->XPathCtx_thesaurus);
 	}
 }
 */
@@ -384,7 +373,7 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 	MYSQL *xconn = (MYSQL *)(qp->sqlconn->get_native_conn());
 	CHRONO chrono;
 
-	std::pair < std::set<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
+    std::pair <std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator, bool> insert_ret;
 
 	startChrono(chrono);
 
@@ -461,23 +450,31 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 						long lastrid = -1;
 
 						startChrono(chrono);
+//		qp->n->n = 0;
 						while(mysql_stmt_fetch(stmt) == 0)
 						{
+//		qp->n->n++;
+
 							rid = int_result[SQLFIELD_RID];
 
 							CANSWER *answer;
+							std::multiset<PCANSWER, PCANSWERCOMPRID_DESC>::iterator where;
 							if((answer = new CANSWER()))
 							{
 								answer->rid = rid;
-								insert_ret = qp->n->answers.insert(answer);
-								if(insert_ret.second == false)
+
+//								insert_ret = qp->n->answers.insert(answer);
+//								if(insert_ret.second == false)
+								where = qp->n->answers.find(answer);
+								if(where != qp->n->answers.end())
 								{
 									// this rid already exists
 									delete answer;
-									answer = *(insert_ret.first);
+									answer = *where;
 								}
 								else
 								{
+									qp->n->answers.insert(answer);
 									// n->nbranswers++;
 
 									// a new rid
@@ -509,7 +506,7 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 							if(!is_null[SQLFIELD_IW] && answer)
 							{
 								CHIT *hit;
-								if(hit = new CHIT(int_result[SQLFIELD_IW]))
+								if( (hit = new CHIT(int_result[SQLFIELD_IW])) != NULL)
 								{
 									if(!(answer->firsthit))
 										answer->firsthit = hit;
@@ -521,7 +518,7 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 							if(!is_null[SQLFIELD_HITSTART] && !is_null[SQLFIELD_HITLEN] && answer)
 							{
 								CSPOT *spot;
-								if(spot = new CSPOT(int_result[SQLFIELD_HITSTART], int_result[SQLFIELD_HITLEN]))
+								if( (spot = new CSPOT(int_result[SQLFIELD_HITSTART], int_result[SQLFIELD_HITLEN])) != NULL)
 								{
 									if(!(answer->firstspot))
 										answer->firstspot = spot;
@@ -532,6 +529,7 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 							}
 						}
 						qp->n->time_sqlFetch = stopChrono(chrono);
+
 					}
 					else // store error
 					{
@@ -558,4 +556,7 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 	}
 //	mysql_thread_end();
 }
+
+// send a 'leaf' query to a databox
+// results are returned into the node (qp->n)
 

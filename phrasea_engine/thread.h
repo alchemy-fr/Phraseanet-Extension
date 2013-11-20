@@ -13,8 +13,8 @@
 #ifdef WIN32
 	#include <windows.h>
 	#include <process.h>
-	#define THREAD_ENTRYPOINT unsigned __stdcall  
-//	#define THREAD_ENTRYPOINT DWORD WINAPI 
+	#define THREAD_ENTRYPOINT unsigned __stdcall
+//	#define THREAD_ENTRYPOINT DWORD WINAPI
 	#define ATHREAD HANDLE
 	#define NULLTHREAD 0L
 	#define THREAD_START(thread, entrypoint, parm) ((thread = (HANDLE)_beginthreadex(NULL, 0, (entrypoint), (void *)(parm), 0, NULL)) != (HANDLE)(-1))

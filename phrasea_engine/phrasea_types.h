@@ -59,7 +59,7 @@ enum
 
 enum
 {
-	PHRASEA_MULTIDOC_DOCONLY = 0, PHRASEA_MULTIDOC_REGONLY = 1
+	PHRASEA_MULTIDOC_DOCONLY = 0, PHRASEA_MULTIDOC_REGONLY = 1, PHRASEA_MULTIDOC_ALL = 2
 };
 
 enum
@@ -77,12 +77,39 @@ enum
 	SORTMETHOD_STR = 0, SORTMETHOD_INT = 1
 };
 
+/*
 typedef struct collid_pair
 {
 	long local_base_id; // id de base locale (champ 'base_id' dans la table 'bas' de la base 'phrasea' locale)
 	long distant_coll_id; // id de collection distante (champ 'coll_id' dans la table 'coll' de la base distante)
 }
 COLLID_PAIR;
+*/
+
+class COLLMASK
+{
+public:
+	// long local_base_id; // id de base locale (champ 'base_id' dans la table 'bas' de la base 'phrasea' locale)
+	unsigned long mask_xor;
+	unsigned long mask_and;
+	COLLMASK ()
+	{
+		this->mask_xor = this->mask_and = 0;
+	}
+	COLLMASK (unsigned long mask_xor, unsigned long mask_and)
+	{
+		this->mask_xor = mask_xor;
+		this->mask_and = mask_and;
+	}
+	/*
+	COLLMASK(const COLLMASK &other)
+	{
+		this->mask_xor = other.mask_xor;
+		this->mask_and = other.mask_and;
+	}
+	 */
+};
+typedef std::map<long, COLLMASK> TCOLLMASK;
 
 class CSPOT
 {
@@ -122,10 +149,11 @@ class CANSWER
 {
 public:
 	//	enum { SORTTYPE_UNKNOWN = -1, SORTTYPE_TEXT = 1, SORTTYPE_INT = 2, SORTTYPE_DATE = 4 };
-	int rid;
+	long rid;
 	//		int prid;
-	int cid;
+	long cid;
 	//		unsigned long long llstatus;	// 64 bits
+	long bid;
 	CSHA *sha2;
 
 	struct
@@ -167,11 +195,12 @@ class CNODE
 public:
 	int type;
 	bool isempty;
-	std::set<PCANSWER, PCANSWERCOMPRID_DESC> answers;
+	std::multiset<PCANSWER, PCANSWERCOMPRID_DESC> answers;
 	int nleaf;
 	double time_C;
+	double time_connect, time_createtmp, time_inserttmp;
 	double time_sqlQuery, time_sqlStore, time_sqlFetch;
-
+//	int n;
 	union
 	{
 		struct

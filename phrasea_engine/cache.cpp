@@ -36,7 +36,7 @@ CACHE_COLL::CACHE_COLL(long coll_id, long base_id, const char *name, const char 
 	{
 		lstr = strlen(name);
 		lram = LSTRPAD(lstr);			// room for the final '\0', rounded to the next multiple of PAD
-		if(this->name = (char *)EMALLOC(lram))
+		if( (this->name = (char *)EMALLOC(lram)) != NULL)
 		{
 			this->name_lenPAD = lram;
 			memcpy(this->name, name, lstr+1);
@@ -50,7 +50,7 @@ CACHE_COLL::CACHE_COLL(long coll_id, long base_id, const char *name, const char 
 	{
 		lstr = strlen(prefs);
 		lram = LSTRPAD(lstr);			// room for the final '\0', rounded to the next multiple of PAD
-		if(this->prefs = (char *)EMALLOC(lram))
+		if( (this->prefs = (char *)EMALLOC(lram)) != NULL)
 		{
 			this->prefs_lenPAD = lram;
 			memcpy(this->prefs, prefs, lstr+1);
@@ -163,7 +163,7 @@ CACHE_BASE::CACHE_BASE(long base_id, const char *host, long port, const char *us
 	{
 		long lstr = strlen(viewname);
 		long lram = LSTRPAD(lstr);			// room for the final '\0', rounded to the next multiple of PAD
-		if(this->viewname = (char *)EMALLOC(lram))
+		if( (this->viewname = (char *)EMALLOC(lram)) != NULL)
 		{
 			this->viewname_lenPAD = lram;
 			memcpy(this->viewname, viewname, lstr+1);
@@ -178,7 +178,7 @@ CACHE_BASE::CACHE_BASE(long base_id, const char *host, long port, const char *us
 	{
 		long lstr = strlen(host);
 		long lram = LSTRPAD(lstr);			// room for the final '\0', rounded to the next multiple of PAD
-		if(this->host = (char *)EMALLOC(lram))
+		if( (this->host = (char *)EMALLOC(lram)) != NULL)
 		{
 			this->host_lenPAD = lram;
 			memcpy(this->host, host, lstr+1);
@@ -193,7 +193,7 @@ CACHE_BASE::CACHE_BASE(long base_id, const char *host, long port, const char *us
 	{
 		long lstr = strlen(user);
 		long lram = LSTRPAD(lstr);			// room for the final '\0', rounded to the next multiple of PAD
-		if(this->user = (char *)EMALLOC(lram))
+		if( (this->user = (char *)EMALLOC(lram)) != NULL)
 		{
 			this->user_lenPAD = lram;
 			memcpy(this->user, user, lstr+1);
@@ -208,7 +208,7 @@ CACHE_BASE::CACHE_BASE(long base_id, const char *host, long port, const char *us
 	{
 		long lstr = strlen(passwd);
 		long lram = LSTRPAD(lstr);			// room for the final '\0', rounded to the next multiple of PAD
-		if(this->passwd = (char *)EMALLOC(lram))
+		if( (this->passwd = (char *)EMALLOC(lram)) != NULL)
 		{
 			this->passwd_lenPAD = lram;
 			memcpy(this->passwd, passwd, lstr+1);
@@ -223,7 +223,7 @@ CACHE_BASE::CACHE_BASE(long base_id, const char *host, long port, const char *us
 	{
 		long lstr = strlen(dbname);
 		long lram = LSTRPAD(lstr);			// room for the final '\0', rounded to the next multiple of PAD
-		if(this->dbname = (char *)EMALLOC(lram))
+		if( (this->dbname = (char *)EMALLOC(lram)) != NULL)
 		{
 			this->dbname_lenPAD = lram;
 			memcpy(this->dbname, dbname, lstr+1);
@@ -238,7 +238,7 @@ CACHE_BASE::CACHE_BASE(long base_id, const char *host, long port, const char *us
 	{
 		long lstr = strlen(xmlstruct);
 		long lram = LSTRPAD(lstr);			// room for the final '\0', rounded to the next multiple of PAD
-		if(this->xmlstruct = (char *)EMALLOC(lram))
+		if( (this->xmlstruct = (char *)EMALLOC(lram)) != NULL)
 		{
 			this->xmlstruct_lenPAD = lram;
 			memcpy(this->xmlstruct, xmlstruct, lstr+1);
@@ -495,7 +495,7 @@ bool CACHE_SESSION::save()
 		if( (mysql_stmt_prepare(stmt, query, strlen(query))) == 0 )
 		{
 			binlen = this->get_binsize();		// get size needed
-			if(binbuff = (char *)EMALLOC(binlen))
+			if( (binbuff = (char *)EMALLOC(binlen)) != NULL)
 			{
 				memset(binbuff, 0, binlen);
 				binlen = this->serialize_bin((long *)binbuff);		// serialize and get the real size
