@@ -1,3 +1,6 @@
+1.21.2.2
+fix #1587 (sorting sometimes returns 0 answers)
+
 1.21.2.1
 fix : phrasea_highlight() returned false for query "last"
 code clean

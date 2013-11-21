@@ -320,16 +320,16 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 						CNODE *query;
 						query = qtree2tree(&zqarray, 0);
 
+						char zsortfield_esc[65];
+						char *psortfield_esc = zsortfield_esc;
 						char **pzsortfield; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
 						// SECURITY : escape zsortfield
 						if(zsortfield != NULL)
 						{
 							if(zsortfieldlen > 32)
 								zsortfieldlen = 32;
-							char zsortfield_esc[65];
 							zsortfield_esc[conn->escape_string(zsortfield, zsortfieldlen, zsortfield_esc)] = '\0';
 
-							char *psortfield_esc = zsortfield_esc;
 							pzsortfield = &psortfield_esc; // pass as ptr because querytree2 may reset it to null during exec of 'sha256=sha256'
 						}
 						else
