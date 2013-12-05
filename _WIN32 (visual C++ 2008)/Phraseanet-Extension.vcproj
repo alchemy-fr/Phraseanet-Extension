@@ -423,10 +423,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\phrasea_engine\mysql_fixed.h"
-					>
-				</File>
-				<File
 					RelativePath="..\phrasea_engine\phrasea_clock_t.h"
 					>
 				</File>
@@ -508,7 +504,15 @@
 					>
 				</File>
 				<File
+					RelativePath="..\phrasea_engine\qtree3.cpp"
+					>
+				</File>
+				<File
 					RelativePath="..\phrasea_engine\query.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\phrasea_engine\query3.cpp"
 					>
 				</File>
 				<File
@@ -522,27 +526,6 @@
 				<File
 					RelativePath="..\phrasea_engine\trace_memory.cpp"
 					>
-					<FileConfiguration
-						Name="Release_TS_php-5.4.7_win32|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_TS_php-5.3.17_win32|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release_TS_php-5.4.11_win32|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-						/>
-					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\phrasea_engine\unicode.cpp"

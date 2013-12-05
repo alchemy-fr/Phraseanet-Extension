@@ -1540,7 +1540,7 @@ THREAD_ENTRYPOINT querytree_public(void *_qp)
 						hThreadArray[1] = (HANDLE)_beginthreadex(
 							NULL,                   // default security attributes
 							0,                      // use default stack size
-							querytree_public			    // thread function name
+							querytree_public,			    // thread function name
 							(void*)&qpr,             // argument to thread function
 							0,                      // use default creation flags
 							&dwThreadIdArray[1]);   // returns the thread identifier
