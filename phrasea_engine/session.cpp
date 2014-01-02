@@ -150,7 +150,7 @@ ZEND_FUNCTION(phrasea_create_session)
 						if(conn && conn->connect())
 						{
 							SQLRES res2(conn);
-							if(res2.query("SELECT value AS struct FROM pref WHERE prop='structure' LIMIT 1;"))
+							if(0 && res2.query("SELECT value AS struct FROM pref WHERE prop='structure' LIMIT 1;"))
 							{
 								SQLROW *row2 = res2.fetch_row();
 								if(row2)
@@ -183,7 +183,8 @@ ZEND_FUNCTION(phrasea_create_session)
 							if(row && cache_base)
 							{
 								// cache_base->addcoll(collid, basid, row->field(0), (char *) (row->field(1) ? row->field(1) : ""), false);
-								cache_base->addcoll(collid, basid, row->field(0, "dbox"), row->field(1, "")); // , true);
+//								cache_base->addcoll(collid, basid, row->field(0, "dbox"), row->field(1, "")); // , true);
+								cache_base->addcoll(collid, basid, row->field(0, "dbox"), ""); // , true);
 							}
 						}
 					}
