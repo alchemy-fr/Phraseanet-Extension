@@ -1,4 +1,13 @@
-1.21.3.0 
+1.22.0.0
+============== FOR TEST ONLY, DO NOT USE IN PRODUCTION ==============
+faster sql
+disabled functions (not used in phraseanet) :
+phrasea_public_query()
+phrasea_highlight()
+log results in /tmp/phraseanet-extension.log
+
+
+1.21.3.0
 ============== FOR TEST ONLY, DO NOT USE IN PRODUCTION ==============
 some (heavy) infos removed from sql "appbox.cache.session" :
 - structure of bases
