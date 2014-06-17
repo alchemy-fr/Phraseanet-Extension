@@ -8,6 +8,25 @@
 // true global ok here
 static const char *math2sql[] = {"=",  "<>",  ">",  "<",  ">=",  "<="};
 
+bool isnumber(const char *s)
+{
+    if(!s)
+        return(false);
+    char *p = (char *)s;
+    if(*p == '-')      // a '-' is allowed as the first char
+        p++;
+    int ndot = 0;
+    while(*p)
+    {
+        if(*p=='.' && ++ndot > 1)
+            return(false);          // only 1 '.' allowed
+        if(*p<'0' || *p>'9')
+            return(false);          // only digits allowed
+        p++;
+    }
+    return(true);
+}
+
 
 char *kwclause(Cquerytree2Parm *qp, KEYWORD *k)
 {
@@ -567,208 +586,313 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 				break;
 
 			case PHRASEA_KW_ALL: // all
-				if(qp->rid != 0)
-				{
-					// ===== OK ? =====
-					sprintfSQL(sql, "SELECT record_id, record.coll_id"
-							// ", NULL AS skey"
-							// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-							// ", NULL AS sha256"
-							" FROM record WHERE record_id='%ld'"
-							, qp->rid
-							);
-				}
-				else
-				{
-					if(qp->n->content.numparm.v == 0)
-					{
-						if(*(qp->psortField))
-						{
-							// ===== OK =====
-							sprintfSQL(sql, "SELECT record_id, record.coll_id"
-									", prop.value AS skey"
-									// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-									// ", NULL AS sha256"
-									" FROM %s"
-									" INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
-									, qp->sqltrec
-									, *(qp->psortField)
-									);
-						}
-						else
-						{
-							// ===== OK =====
-							sprintfSQL(sql, "SELECT record_id, record.coll_id"
-									// ", NULL AS skey"
-									// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-									// ", NULL AS sha256"
-									" FROM %s"
-									, qp->sqltrec
-									);
-						}
-					}
-					else
-					{
-						if(*(qp->psortField))
-						{
-							// ===== OK =====
-							sprintfSQL(sql, "SELECT record_id, record.coll_id"
-									", prop.value AS skey"
-									// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-									// ", NULL AS sha256"
-									" FROM %s"
-									" INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
-									" ORDER BY skey DESC LIMIT %i"
-									, qp->sqltrec
-									, *(qp->psortField)
-									, qp->n->content.numparm.v
-									);
-						}
-						else
-						{
-							// ===== OK =====
-							sprintfSQL(sql, "SELECT record_id, record.coll_id"
-									// ", NULL AS skey"
-									// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-									// ", NULL AS sha256"
-									" FROM %s"
-									" ORDER BY record_id DESC LIMIT %i"
-									, qp->sqltrec
-									, qp->n->content.numparm.v
-									);
-						}
-					}
-				}
+                if(qp->n->content.numparm.v == 0)
+                {
+                    if(*(qp->psortField))
+                    {
+                        /*
+                        // ===== OK =====
+                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                ", prop.value AS skey"
+                                // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                // ", NULL AS sha256"
+                                " FROM %s"
+                                " INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
+                                , qp->sqltrec
+                                , *(qp->psortField)
+                                );
+                        */
+                        // ===== Optimized ?  =====
+                        sprintfSQL(sql,
+                                   "SELECT record_id, _tmpmask.coll_id, prop.value AS skey"
+                                   " FROM (record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id))"
+                                   " INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
+                                   "%s"             // " AND parent_record_id=0"
+                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                   "%s%s"           // " AND record.recordid=ZZZ"
+                                   , *(qp->psortField)
+                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                   , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                                   , qp->srid ? " AND record.record_id=" : ""
+                                   , qp->srid ? qp->srid : ""
+                                   );
+                    }
+                    else
+                    {
+                        /*
+                        // ===== OK =====
+                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                // ", NULL AS skey"
+                                // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                // ", NULL AS sha256"
+                                " FROM %s"
+                                , qp->sqltrec
+                                );
+                        */
+                        // ===== Optimized ?  =====
+                        sprintfSQL(sql,
+                                   "SELECT record_id, _tmpmask.coll_id"
+                                   " FROM record"
+                                   " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                   " WHERE %s"             // "parent_record_id=0"
+                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                   "%s%s"
+                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "1":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? "parent_record_id=0" : "parent_record_id=1")
+                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                   , qp->srid ? " AND record.record_id=" : ""
+                                   , qp->srid ? qp->srid : ""
+                                   );
+                    }
+                }
+                else
+                {
+                    if(*(qp->psortField))
+                    {
+                        /*
+                        // ===== OK =====
+                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                ", prop.value AS skey"
+                                // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                // ", NULL AS sha256"
+                                " FROM %s"
+                                " INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
+                                " ORDER BY skey DESC LIMIT %i"
+                                , qp->sqltrec
+                                , *(qp->psortField)
+                                , qp->n->content.numparm.v
+                                );
+                        */
+                        // ===== Optimized ?  =====
+                        sprintfSQL(sql,
+                                   "SELECT record_id, _tmpmask.coll_id, prop.value AS skey"
+                                   " FROM (record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id))"
+                                   " INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
+                                   "%s"             // " AND parent_record_id=0"
+                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                   "%s%s"
+                                   " ORDER BY skey DESC LIMIT %i"
+                                   , *(qp->psortField)
+                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                   , qp->srid ? " AND record.record_id=" : ""
+                                   , qp->srid ? qp->srid : ""
+                                   , qp->n->content.numparm.v
+                                   );
+                    }
+                    else
+                    {
+                        /*
+                        // ===== OK =====
+                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                // ", NULL AS skey"
+                                // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                // ", NULL AS sha256"
+                                " FROM %s"
+                                " ORDER BY record_id DESC LIMIT %i"
+                                , qp->sqltrec
+                                , qp->n->content.numparm.v
+                                );
+                        */
+                        // ===== Optimized ?  =====
+                        sprintfSQL(sql,
+                                   "SELECT record_id, _tmpmask.coll_id"
+                                   " FROM record"
+                                   " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                   " WHERE %s"             // "parent_record_id=0"
+                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                   "%s%s"
+                                   " ORDER BY record_id DESC LIMIT %i"
+                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "1":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? "parent_record_id=0" : "parent_record_id=1")
+                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                   , qp->srid ? " AND record.record_id=" : ""
+                                   , qp->srid ? qp->srid : ""
+                                   , qp->n->content.numparm.v
+                                   );
+                    }
+                }
 				qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 				break;
 
 			case PHRASEA_KW_LAST: // last
-				if(qp->rid != 0)
-				{
-					// ===== OK ? =====
-					sprintfSQL(sql, "SELECT record_id, record.coll_id"
-							// ", NULL AS skey"
-							// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-							// ", NULL AS sha256"
-							" FROM record WHERE record_id='%ld'"
-							, qp->rid
-							);
-					qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
-				}
-				else
-				{
-					if(qp->n->content.numparm.v > 0)
-					{
-						if(*(qp->psortField))
-						{
-							// ===== OK =====
-							sprintfSQL(sql, "SELECT r.record_id, r.coll_id"
-									", prop.value AS skey"
-									// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-									// ", NULL AS sha256"
-									" FROM ("
-									"SELECT record_id, record.coll_id"
-									" FROM %s"
-									" ORDER BY record_id DESC LIMIT %i"
-									") AS r"
-									" INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
-									, qp->sqltrec
-									, qp->n->content.numparm.v
-									, *(qp->psortField)
-									);
-						}
-						else
-						{
-							// ===== OK =====
-							sprintfSQL(sql, "SELECT record_id, record.coll_id"
-									// ", NULL AS skey"
-									// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-									// ", NULL AS sha256"
-									" FROM %s"
-									" ORDER BY record_id DESC LIMIT %i"
-									, qp->sqltrec
-									, qp->n->content.numparm.v
-									);
-						}
-					}
-					qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
-				}
+                if(qp->n->content.numparm.v > 0)
+                {
+                    if(*(qp->psortField))
+                    {
+                        /*
+                        // ===== OK =====
+                        sprintfSQL(sql, "SELECT r.record_id, r.coll_id"
+                                   ", prop.value AS skey"
+                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                   // ", NULL AS sha256"
+                                   " FROM ("
+                                   "SELECT record_id, record.coll_id"
+                                   " FROM %s"
+                                   " ORDER BY record_id DESC LIMIT %i"
+                                   ") AS r"
+                                   " INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
+                                   , qp->sqltrec
+                                   , qp->n->content.numparm.v
+                                   , *(qp->psortField)
+                                   );
+                        */
+                        // ===== Optimized ? =====
+                        sprintfSQL(sql, "SELECT r.record_id, r.coll_id"
+                                   ", prop.value AS skey"
+                                   " FROM ("
+                                   "SELECT record_id, _tmpmask.coll_id FROM record"
+                                   " STRAIGHT_JOIN _tmpmask ON (_tmpmask.coll_id=record.coll_id)"
+                                   " WHERE %s"             // "parent_record_id=0"
+                                   "%s"
+                                   "%s%s"
+                                   " ORDER BY record_id DESC LIMIT %i"
+                                   ") AS r"
+                                   " INNER JOIN prop USING(record_id) WHERE prop.name='%s'"
+                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "1":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? "parent_record_id=0" : "parent_record_id=1")
+                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                   , qp->srid ? " AND record.record_id=" : ""
+                                   , qp->srid ? qp->srid : ""
+                                   , qp->n->content.numparm.v
+                                   , *(qp->psortField)
+                                   );
+                    }
+                    else
+                    {
+                        /*
+                        // ===== OK =====
+                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                // ", NULL AS skey"
+                                // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                // ", NULL AS sha256"
+                                " FROM %s"
+                                " ORDER BY record_id DESC LIMIT %i"
+                                , qp->sqltrec
+                                , qp->n->content.numparm.v
+                                );
+                        */
+                        // ===== Optimized ! note : "last n" <=> "all n" =====
+                        sprintfSQL(sql,
+                                   "SELECT record_id, _tmpmask.coll_id"
+                                   " FROM record"
+                                   " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                   " WHERE %s"             // "parent_record_id=0"
+                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                   "%s%s"
+                                   " ORDER BY record_id DESC LIMIT %i"
+                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "1":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? "parent_record_id=0" : "parent_record_id=1")
+                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                   , qp->srid ? " AND record.record_id=" : ""
+                                   , qp->srid ? qp->srid : ""
+                                   , qp->n->content.numparm.v
+                               );
+                    }
+                }
+                
+				qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 				break;
 
 			case PHRASEA_KEYLIST: // simple word
 				plk = qp->n->content.multileaf.firstkeyword;
 				if(plk && (p = kwclause(qp, plk)))
 				{
-					if(qp->rid != 0)
-					{
-						// ===== OK ? =====
-						sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
-									", NULL AS skey"
-									", hitstart, hitlen, iw"
-									// ", NULL AS sha256"
-									" FROM (kword INNER JOIN idx USING(kword_id))"
-									" INNER JOIN record USING(record_id)"
-									" WHERE (%s) AND (record_id='%ld')"
-									, p
-									, qp->rid
-									);
-					}
-					else
-					{
-						if(*(qp->psortField))
-						{
-							// ===== OK =====
-							sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
-										", prop.value AS skey"
-										", hitstart, hitlen, iw"
-										// ", NULL AS sha256"
-										" FROM ((kword INNER JOIN idx USING(kword_id))"
-										" INNER JOIN %s USING(record_id))"
-										" INNER JOIN prop USING(record_id)"
-										" WHERE (%s) AND (%s%s) AND prop.name='%s'"
-										, qp->sqltrec
-										, p
-										, qp->business ? "!idx.business " : "1"
-										, qp->business ? qp->business : ""
-										, *(qp->psortField)
-										);
-						}
-						else
-						{
-							// ===== OK =====
-							sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
-										", NULL AS skey"
-										", hitstart, hitlen, iw"
-										// ", NULL AS sha256"
-										" FROM (kword INNER JOIN idx USING(kword_id))"
-										" INNER JOIN %s USING(record_id)"
-										" WHERE (%s) AND (%s%s)"
-										, qp->sqltrec
-										, p
-										, qp->business ? "!idx.business " : "1"
-										, qp->business ? qp->business : ""
-										);
-						}
-						EFREE(p);
+                    if(*(qp->psortField))
+                    {
+                        /*
+                        // ===== OK =====
+                        sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
+                                    ", prop.value AS skey"
+                                    ", hitstart, hitlen, iw"
+                                    // ", NULL AS sha256"
+                                    " FROM ((kword INNER JOIN idx USING(kword_id))"
+                                    " INNER JOIN %s USING(record_id))"
+                                    " INNER JOIN prop USING(record_id)"
+                                    " WHERE (%s) AND (%s%s) AND prop.name='%s'"
+                                    , qp->sqltrec
+                                    , p
+                                    , qp->business ? "!idx.business " : "1"
+                                    , qp->business ? qp->business : ""
+                                    , *(qp->psortField)
+                                    );
+                        */
+                        // ===== Optimized ? =====
+                        sprintfSQL(sql, "SELECT idx.record_id, _tmpmask.coll_id"
+                                   ", prop.value AS skey"
+                                   ", hitstart, hitlen, iw"
+                                   " FROM (((kword FORCE INDEX(keyword) INNER JOIN idx USING(kword_id))"
+                                   " INNER JOIN record USING(record_id))"
+                                   " INNER JOIN prop USING(record_id))"
+                                   " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                   " WHERE"
+                                   " (%s)"          // "keyword='toto'"
+                                   "%s"             // " AND parent_record_id=0"
+                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                   "%s%s"
+                                   " AND (!idx.business OR !only_business)"
+                                   " AND prop.name='%s'"
+                                   , p
+                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                   , qp->srid ? " AND record.record_id=" : ""
+                                   , qp->srid ? qp->srid : ""
+                                   , *(qp->psortField)
+                                   );
+                    }
+                    else
+                    {
+                        /*
+                        // ===== OK =====
+                        sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
+                                   ", NULL AS skey"
+                                   ", hitstart, hitlen, iw"
+                                   // ", NULL AS sha256"
+                                   " FROM (kword INNER JOIN idx USING(kword_id))"
+                                   " INNER JOIN %s USING(record_id)"
+                                   " WHERE (%s) AND (%s%s)"
+                                   , qp->sqltrec
+                                   , p
+                                   , qp->business ? "!idx.business " : "1"
+                                   , qp->business ? qp->business : ""
+                                   );
+                        */
+                        // ===== Optimized ! =====
+                        sprintfSQL(sql, "SELECT idx.record_id, _tmpmask.coll_id"
+                                   ", NULL AS skey"
+                                   ", hitstart, hitlen, iw"
+                                   " FROM ((kword FORCE INDEX(keyword) INNER JOIN idx USING(kword_id))"
+                                   " INNER JOIN record USING(record_id))"
+                                   " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                   " WHERE"
+                                   " (%s)"          // "keyword='toto'"
+                                   "%s"             // " AND parent_record_id=0"
+                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                   "%s%s"
+                                   " AND (!business OR !only_business)"
+                                   ,p
+                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                   , qp->srid ? " AND record.record_id=" : ""
+                                   , qp->srid ? qp->srid : ""
+                                   );
+                    }
+                    EFREE(p);
 
-						if(plk->nextkeyword)
-						{
-							MAKE_STD_ZVAL(objl);
-							array_init(objl);
-							while(plk)
-							{
-								add_next_index_string(objl, plk->kword, true);
-								plk = plk->nextkeyword;
-							}
-							if(qp->result)
-								add_assoc_zval(qp->result, (char *) "keyword", objl);
-						}
-						else
-						{
-							if(qp->result)
-								add_assoc_string(qp->result, (char *) "keyword", plk->kword, true);
-						}
-					}
+                    if(plk->nextkeyword)
+                    {
+                        MAKE_STD_ZVAL(objl);
+                        array_init(objl);
+                        while(plk)
+                        {
+                            add_next_index_string(objl, plk->kword, true);
+                            plk = plk->nextkeyword;
+                        }
+                        if(qp->result)
+                            add_assoc_zval(qp->result, (char *) "keyword", objl);
+                    }
+                    else
+                    {
+                        if(qp->result)
+                            add_assoc_string(qp->result, (char *) "keyword", plk->kword, true);
+                    }
+
 					qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 				}
 				break;
@@ -790,63 +914,96 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 						{
 							lfield_esc = qp->sqlconn->escape_string(pfield, lfield, pfield_esc);
 
-							if(qp->rid != 0)
-							{
-								// ===== OK =====
-								sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
-											", NULL AS skey"
-											", hitstart, hitlen, iw"
-											// ", NULL AS sha256"
-											" FROM ((kword INNER JOIN idx USING(kword_id))"
-											" INNER JOIN record USING(record_id))"
-											" INNER JOIN xpath USING(xpath_id)"
-											" WHERE (%s) AND (record_id='%ld') AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
-											, p
-											, qp->rid
-											, pfield_esc
-											);
-							}
-							else
-							{
-								if(*(qp->psortField))
-								{
-									// ===== OK =====
-									sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
-												", prop.value AS skey"
-												", hitstart, hitlen, iw"
-												// ", NULL AS sha256"
-												" FROM (((kword INNER JOIN idx USING(kword_id))"
-												" INNER JOIN %s USING(record_id))"
-												" INNER JOIN xpath USING(xpath_id))"
-												" INNER JOIN prop USING(record_id)"
-												" WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]' AND prop.name='%s'"
-												, qp->sqltrec
-												, p
-												, qp->business ? "!idx.business " : "1"
-												, qp->business ? qp->business : ""
-												, pfield_esc
-												, *(qp->psortField)
-												);
-								}
-								else
-								{
-									// ===== OK =====
-									sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
-												", NULL AS skey"
-												", hitstart, hitlen, iw"
-												// ", NULL AS sha256"
-												" FROM ((kword INNER JOIN idx USING(kword_id))"
-												" INNER JOIN %s USING(record_id))"
-												" INNER JOIN xpath USING(xpath_id)"
-												" WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
-												, qp->sqltrec
-												, p
-												, qp->business ? "!idx.business " : "1"
-												, qp->business ? qp->business : ""
-												, pfield_esc
-												);
-								}
-							}
+                            if(*(qp->psortField))
+                            {
+                                /*
+                                // ===== OK =====
+                                sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
+                                            ", prop.value AS skey"
+                                            ", hitstart, hitlen, iw"
+                                            // ", NULL AS sha256"
+                                            " FROM (((kword INNER JOIN idx USING(kword_id))"
+                                            " INNER JOIN %s USING(record_id))"
+                                            " INNER JOIN xpath USING(xpath_id))"
+                                            " INNER JOIN prop USING(record_id)"
+                                            " WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]' AND prop.name='%s'"
+                                            , qp->sqltrec
+                                            , p
+                                            , qp->business ? "!idx.business " : "1"
+                                            , qp->business ? qp->business : ""
+                                            , pfield_esc
+                                            , *(qp->psortField)
+                                            );
+                                */
+                                // ===== Optimized ? =====
+                                sprintfSQL(sql, "SELECT idx.record_id, _tmpmask.coll_id"
+                                           ", prop.value AS skey"
+                                           ", hitstart, hitlen, iw"
+                                           " FROM (((kword FORCE INDEX(keyword) INNER JOIN idx USING(kword_id))"
+                                           " INNER JOIN record USING(record_id))"
+                                           " INNER JOIN xpath USING(xpath_id))"
+                                           " INNER JOIN prop USING(record_id)"
+                                           " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                           " WHERE"
+                                           " (%s)"          // "keyword='toto'"
+                                           "%s"             // " AND parent_record_id=0"
+                                           "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                           "%s%s"
+                                           " AND (!idx.business OR !only_business)"
+                                           " AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
+                                           " AND prop.name='%s'"
+                                           , p
+                                           , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                           , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                           , qp->srid ? " AND record.record_id=" : ""
+                                           , qp->srid ? qp->srid : ""
+                                           , pfield_esc
+                                           , *(qp->psortField)
+                                           );
+                            }
+                            else
+                            {
+                                /*
+                                // ===== OK =====
+                                sprintfSQL(sql, "SELECT idx.record_id, record.coll_id"
+                                            ", NULL AS skey"
+                                            ", hitstart, hitlen, iw"
+                                            // ", NULL AS sha256"
+                                            " FROM ((kword INNER JOIN idx USING(kword_id))"
+                                            " INNER JOIN %s USING(record_id))"
+                                            " INNER JOIN xpath USING(xpath_id)"
+                                            " WHERE (%s) AND (%s%s) AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
+                                            , qp->sqltrec
+                                            , p
+                                            , qp->business ? "!idx.business " : "1"
+                                            , qp->business ? qp->business : ""
+                                            , pfield_esc
+                                            );
+                                */
+                                // ===== Optimized ? =====
+                                sprintfSQL(sql, "SELECT idx.record_id, _tmpmask.coll_id"
+                                           ", NULL AS skey"
+                                           ", hitstart, hitlen, iw"
+                                           " FROM (((kword FORCE INDEX(keyword) INNER JOIN idx USING(kword_id))"
+                                           " INNER JOIN record USING(record_id))"
+                                           " INNER JOIN xpath USING(xpath_id))"
+                                           " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                           " WHERE"
+                                           " (%s)"          // "keyword='toto'"
+                                           "%s"             // " AND parent_record_id=0"
+                                           "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                           "%s%s"
+                                           " AND (!business OR !only_business)"
+                                           " AND xpath REGEXP 'DESCRIPTION\\\\[0\\\\]/%s\\\\[[0-9]+\\\\]'"
+                                           , p
+                                           , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                           , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                           , qp->srid ? " AND record.record_id=" : ""
+                                           , qp->srid ? qp->srid : ""
+                                           , pfield_esc
+                                           );
+                            }
+
 							EFREE(pfield_esc);
 
 							if(qp->result)
@@ -901,315 +1058,631 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 								add_assoc_string(qp->result, (char *) "value", qp->n->content.boperator.r->content.multileaf.firstkeyword->kword, true);
 							}
 
-							if(qp->rid != 0)
-							{
-								// ===== OK =====
-								sprintfSQL(sql, "SELECT record_id, coll_id"
-										// ", NULL AS skey"
-										// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-										// ", NULL AS sha256"
-										" FROM record WHERE record_id='%ld'"
-										, qp->rid
-										);
+                            sql[0] = '\0';
 
-								qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
-							}
-							else
-							{
-								sql[0] = '\0';
+                            // SECURITY : escape fieldname...
+                            char *pfield = qp->n->content.boperator.l->content.multileaf.firstkeyword->kword;
+                            int   lfield = strlen(pfield);
+                            char *buff_field_esc = NULL;
+                            int   lfield_esc = qp->sqlconn->escape_string(pfield, lfield, NULL);
+                            // ...and fieldvalue
+                            char *pvalue = qp->n->content.boperator.r->content.multileaf.firstkeyword->kword;
+                            int   lvalue = strlen(pvalue);
+                            char *buff_value_esc = NULL;
+                            int   lvalue_esc = qp->sqlconn->escape_string(pvalue, lvalue, NULL) + 2;    // 2 quotes
 
-								// SECURITY : escape fieldname...
-								char *pfield = qp->n->content.boperator.l->content.multileaf.firstkeyword->kword;
-								int   lfield = strlen(pfield);
-								char *pfield_esc = NULL;
-								int   lfield_esc = qp->sqlconn->escape_string(pfield, lfield);
-								// ...and fieldvalue
-								char *pvalue = qp->n->content.boperator.r->content.multileaf.firstkeyword->kword;
-								int   lvalue = strlen(pvalue);
-								char *pvalue_esc = NULL;
-								int   lvalue_esc = qp->sqlconn->escape_string(pvalue, lvalue);
+                            if( (buff_field_esc = (char*)EMALLOC(lfield_esc)) && (buff_value_esc = (char*)EMALLOC(lvalue_esc)) )
+                            {
+                                // the quotes around field name are into the sql
+                                lfield_esc = qp->sqlconn->escape_string(pfield, lfield, buff_field_esc);
+                                char *pfield_esc = buff_field_esc;
+                                // no quotes in sql for the value (in case we must compare value as a number
+                                // so include quotes here ?
+                                lvalue_esc = qp->sqlconn->escape_string(pvalue, lvalue, buff_value_esc+1);
+                                char *pvalue_esc = buff_value_esc;
+                                if(isnumber(buff_value_esc+1))
+                                {
+                                    pvalue_esc++;
+                                }
+                                else
+                                {
+                                    buff_value_esc[0] = '\'';
+                                    buff_value_esc[lvalue_esc+1] = '\'';
+                                    buff_value_esc[lvalue_esc+2] = '\0';
+                                }
+                                // technical field sha256 ?
+                                if(!sql[0] && strcmp(pfield, "sha256") == 0)
+                                {
+                                    if(qp->n->type == PHRASEA_OP_EQUAL && strcmp(pvalue, "sha256") == 0)
+                                    {
+                                        // special query "sha256=sha256" (tuples)
+                                        *(qp->psortField) = NULL; // !!!!! this special query cancels sort !!!!!
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, coll_id"
+                                                   ", NULL AS skey"
+                                                   ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   ", sha256"
+                                                   " FROM (SELECT sha256, SUM(1) AS n FROM %s GROUP BY sha256 HAVING n>1) AS b"
+                                                   " INNER JOIN record USING(sha256)"
+                                                   , qp->sqltrec
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
+                                                   ", NULL AS skey"
+                                                   ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   ", sha256 FROM"
+                                                   " (SELECT sha256, SUM(1) AS n"
+                                                   " FROM record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   ") GROUP BY sha256 HAVING n>1) AS b"
+                                                   " INNER JOIN record USING(sha256)"
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   );
+                              //          "%s"             // " AND parent_record_id=0"
+                              //          "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                              //          " AND (!business OR !only_business)"
+                              //          , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                              //          , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                              //          " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                    else
+                                    {
+                                        if(*(qp->psortField))
+                                        {
+                                            /*
+                                            // ===== OK =====
+                                            sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                       ", prop.value AS skey"
+                                                       // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                       // ", NULL AS sha256"
+                                                       " FROM %s"
+                                                       " INNER JOIN prop USING(record_id)"
+                                                       " WHERE sha256%s'%s' AND prop.name='%s'"
+                                                       , qp->sqltrec
+                                                       , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                       , pvalue_esc
+                                                       , *(qp->psortField)
+                                                       );
+                                            */
+                                            // ===== Optimized ? =====
+                                            sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                       ", prop.value AS skey"
+                                                       " FROM record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                       " INNER JOIN prop USING(record_id)"
+                                                       " WHERE sha256%s%s"  // ='zzz'
+                                                       "%s"             // " AND parent_record_id=0"
+                                                       "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                       "%s%s"
+                                                       " AND prop.name='%s'"
+                                                       , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                       , pvalue_esc
+                                                       , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                       , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                       , qp->srid ? " AND record.record_id=" : ""
+                                                       , qp->srid ? qp->srid : ""
+                                                       , *(qp->psortField)
+                                                       );
+                              //              "%s"             // " AND parent_record_id=0"
+                              //              "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                              //              " AND (!business OR !only_business)"
+                              //              , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                              //              , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                              //              " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                        }
+                                        else
+                                        {
+                                            /*
+                                            // ===== OK =====
+                                            sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                       // ", NULL AS skey"
+                                                       // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                       // ", NULL AS sha256"
+                                                       " FROM %s WHERE sha256%s'%s'" // ORDER BY record_id DESC"
+                                                       , qp->sqltrec
+                                                       , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                       , pvalue_esc
+                                                       );
+                                            */
+                                            // ===== Optimized ? =====
+                                            sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                       " FROM record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                       " WHERE sha256%s%s"  // ='zzz'
+                                                       "%s"
+                                                       "%s"
+                                                       "%s%s"
+                                                       , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                       , pvalue_esc
+                                                       , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                       , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                       , qp->srid ? " AND record.record_id=" : ""
+                                                       , qp->srid ? qp->srid : ""
+                                                       );
+                               //             "%s"             // " AND parent_record_id=0"
+                               //             "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                               //             " AND (!business OR !only_business)"
+                               //             , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                               //             , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                               //             " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                        }
+                                    }
+                                }
 
-								if( (pfield_esc = (char*)EMALLOC(lfield_esc)) && (pvalue_esc = (char*)EMALLOC(lvalue_esc)) )
-								{
-									lfield_esc = qp->sqlconn->escape_string(pfield, lfield, pfield_esc);
-									lvalue_esc = qp->sqlconn->escape_string(pvalue, lvalue, pvalue_esc);
+                                // technical field recordid ?
+                                if(!sql[0] && strcmp(pfield, "recordid") == 0)
+                                {
+                                    if(*(qp->psortField))
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
+                                                   ", prop.value AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM %s"
+                                                   " INNER JOIN prop USING(record_id)"
+                                                   " WHERE record.record_id%s'%s' AND prop.name='%s'"
+                                                   , qp->sqltrec
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , *(qp->psortField)
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record.record_id, _tmpmask.coll_id"
+                                                   ", prop.value AS skey"
+                                                   " FROM record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                   " INNER JOIN prop USING(record_id)"
+                                                   " WHERE record.record_id%s%s"    // ='zzz'
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND prop.name='%s'"
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   , *(qp->psortField)
+                                                   );
+                            //            "%s"             // " AND parent_record_id=0"
+                            //            "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " AND (!business OR !only_business)"
+                            //            , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                            //            , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                    else
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                   // ", NULL AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM %s WHERE record_id%s'%s'" // ORDER BY record_id DESC"
+                                                   , qp->sqltrec
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                   " FROM record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                   " WHERE record_id%s%s"   // =='zzz'
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   );
+                            //            "%s"             // " AND parent_record_id=0"
+                            //            "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " AND (!business OR !only_business)"
+                            //            , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                            //            , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                }
 
-									// technical field sha256 ?
-									if(!sql[0] && strcmp(pfield, "sha256") == 0)
-									{
-										if(qp->n->type == PHRASEA_OP_EQUAL && strcmp(pvalue, "sha256") == 0)
-										{
-											// special query "sha256=sha256" (tuples)
-											*(qp->psortField) = NULL; // !!!!! this special query cancels sort !!!!!
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, coll_id"
-													", NULL AS skey"
-													", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													", sha256"
-													" FROM (SELECT sha256, SUM(1) AS n FROM %s GROUP BY sha256 HAVING n>1) AS b"
-													" INNER JOIN record USING(sha256)"
-													, qp->sqltrec
-													);
-										}
-										else
-										{
-											// ===== OK =====
-											if(*(qp->psortField))
-											{
-												sprintfSQL(sql, "SELECT record_id, record.coll_id"
-														", prop.value AS skey"
-														// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-														// ", NULL AS sha256"
-														" FROM %s"
-														" INNER JOIN prop USING(record_id)"
-														" WHERE sha256%s'%s' AND prop.name='%s'"
-														, qp->sqltrec
-														, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-														, pvalue_esc
-														, *(qp->psortField)
-														);
-											}
-											else
-											{
-												// ===== OK =====
-												sprintfSQL(sql, "SELECT record_id, record.coll_id"
-														// ", NULL AS skey"
-														// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-														// ", NULL AS sha256"
-														" FROM %s WHERE sha256%s'%s'" // ORDER BY record_id DESC"
-														, qp->sqltrec
-														, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-														, pvalue_esc
-														);
-											}
-										}
-									}
+                                // technical field recordtype ?
+                                if(!sql[0] && strcmp(pfield, "recordtype") == 0)
+                                {
+                                    if(*(qp->psortField))
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                   ", prop.value AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM %s"
+                                                   " INNER JOIN prop USING(record_id)"
+                                                   " WHERE record.type%s'%s' AND prop.name='%s'"
+                                                   , qp->sqltrec
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , *(qp->psortField)
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                   ", prop.value AS skey"
+                                                   " FROM record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                   " INNER JOIN prop USING(record_id)"
+                                                   " WHERE record.type%s%s"     // ='zzz'
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND prop.name='%s'"
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   , *(qp->psortField)
+                                                   );
+                           //             "%s"             // " AND parent_record_id=0"
+                           //             "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                           //             " AND (!business OR !only_business)"
+                           //             , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                           //             , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                           //             " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                    else
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                   // ", NULL AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM %s"
+                                                   " WHERE type%s'%s'" // ORDER BY record_id DESC"
+                                                   , qp->sqltrec
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                   " FROM record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                   " WHERE type%s%s"    // ='zzz'
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   );
+                            //            "%s"             // " AND parent_record_id=0"
+                            //            "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " AND (!business OR !only_business)"
+                            //            , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                            //            , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                }
 
-									// technical field recordid ?
-									if(!sql[0] && strcmp(pfield, "recordid") == 0)
-									{
-										if(*(qp->psortField))
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
-													", prop.value AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM %s"
-													" INNER JOIN prop USING(record_id)"
-													" WHERE record.record_id%s'%s' AND prop.name='%s'"
-													, qp->sqltrec
-													, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-													, pvalue_esc
-													, *(qp->psortField)
-													);
-										}
-										else
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													// ", NULL AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM %s WHERE record_id%s'%s'" // ORDER BY record_id DESC"
-													, qp->sqltrec
-													, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-													, pvalue_esc
-													);
-										}
-									}
+                                // technical field thumbnail or preview or document ?
+                                if(!sql[0] && (strcmp(pfield_esc, "thumbnail") == 0 || strcmp(pfield_esc, "preview") == 0 || strcmp(pfield_esc, "document") == 0))
+                                {
+                                    char w[] = "NOT(ISNULL(subdef.record_id))";
+                                    if(qp->n->content.boperator.r->content.multileaf.firstkeyword->kword[0] == '0')
+                                        strcpy(w, "ISNULL(subdef.record_id)");
+                                    if(*(qp->psortField))
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
+                                                   ", prop.value AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM (%s LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s'))"
+                                                   " INNER JOIN prop ON(prop.record_id=record.record_id)"
+                                                   " WHERE %s AND prop.name='%s'"
+                                                   , qp->sqltrec
+                                                   , pfield_esc
+                                                   , w
+                                                   , *(qp->psortField)
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record.record_id, _tmpmask.coll_id"
+                                                   ", prop.value AS skey"
+                                                   " FROM ((record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)) LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s'))"
+                                                   " INNER JOIN prop ON(prop.record_id=record.record_id)"
+                                                   " WHERE %s"        // "ISNULL(subdef.record_id)"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND prop.name='%s'"
+                                                   , pfield_esc
+                                                   , w
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   , *(qp->psortField)
+                                                   );
+                            //            "%s"             // " AND parent_record_id=0"
+                            //            "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " AND (!business OR !only_business)"
+                            //            , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                            //            , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                    else
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
+                                                   // ", NULL AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM %s"
+                                                   " LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s')"
+                                                   " WHERE %s" // ORDER BY record_id DESC"
+                                                   , qp->sqltrec
+                                                   , pfield_esc
+                                                   , w
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record.record_id, _tmpmask.coll_id"
+                                                   " FROM record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                   " LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s')"
+                                                   " WHERE %s"        // "ISNULL(subdef.record_id)"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   , pfield_esc
+                                                   , w
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   );
+                            //            "%s"             // " AND parent_record_id=0"
+                            //            "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " AND (!business OR !only_business)"
+                            //            , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                            //            , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                            //            " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                }
 
-									// technical field recordtype ?
-									if(!sql[0] && strcmp(pfield, "recordtype") == 0)
-									{
-										if(*(qp->psortField))
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													", prop.value AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM %s"
-													" INNER JOIN prop USING(record_id)"
-													" WHERE record.type%s'%s' AND prop.name='%s'"
-													, qp->sqltrec
-													, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-													, pvalue_esc
-													, *(qp->psortField)
-													);
-										}
-										else
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													// ", NULL AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM %s"
-													" WHERE type%s'%s'" // ORDER BY record_id DESC"
-													, qp->sqltrec
-													, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-													, pvalue_esc
-													);
-										}
-									}
+                                // champ technique recordstatus ?
+                                if(!sql[0] && strcmp(pfield_esc, "recordstatus") == 0)
+                                {
+                                    // convert status mask 01xx10x1x0110x0 to mask_and and mask_xor
+                                    char buff_and[65];	// 64 bits and nul
+                                    char buff_xor[65];	// 64 bits and nul
+                                    int i; l=MIN(lvalue, 64);       // do not use escaped value because quotes
+                                    for(i=0; i<l; i++)
+                                    {
+                                        buff_and[i] = buff_xor[i] = '0';
+                                        switch(pvalue[i])
+                                        {
+                                            case '0':
+                                                buff_and[i] = '1';
+                                                break;
+                                            case '1':
+                                                buff_and[i] = buff_xor[i] = '1';
+                                                break;
+                                        }
+                                    }
+                                    if(i==0)	// fix 0b to 0b0;
+                                    {
+                                        buff_and[i] = buff_xor[i] = '0';
+                                        i++;
+                                    }
+                                    buff_and[i] = buff_xor[i] = '\0';
 
-									// technical field thumbnail or preview or document ?
-									if(!sql[0] && (strcmp(pfield, "thumbnail") == 0 || strcmp(pfield, "preview") == 0 || strcmp(pfield, "document") == 0))
-									{
-										char w[] = "NOT(ISNULL(subdef.record_id))";
-										if(qp->n->content.boperator.r->content.multileaf.firstkeyword->kword[0] == '0')
-											strcpy(w, "ISNULL(subdef.record_id)");
-										if(*(qp->psortField))
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
-													", prop.value AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM (%s LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s'))"
-													" INNER JOIN prop ON(prop.record_id=record.record_id)"
-													" WHERE %s AND prop.name='%s'"
-													, qp->sqltrec
-													, pfield
-													, w
-													, *(qp->psortField)
-													);
-										}
-										else
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
-													// ", NULL AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM %s"
-													" LEFT JOIN subdef ON(record.record_id=subdef.record_id AND subdef.name='%s')"
-													" WHERE %s" // ORDER BY record_id DESC"
-													, qp->sqltrec
-													, pfield
-													, w
-													);
-										}
-									}
+                                    if(*(qp->psortField))
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                   ", prop.value AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM %s INNER JOIN prop USING(record_id)"
+                                                   " WHERE ((status ^ 0b%s) & 0b%s = 0) AND prop.name='%s'"
+                                                   , qp->sqltrec
+                                                   , buff_xor
+                                                   , buff_and
+                                                   , *(qp->psortField)
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                   ", prop.value AS skey"
+                                                   " FROM (record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id) INNER JOIN prop USING(record_id))"
+                                                   " WHERE ((status ^ 0b%s) & 0b%s = 0)"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND prop.name='%s'"
+                                                   , buff_xor
+                                                   , buff_and
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   , *(qp->psortField)
+                                                   );
+                          //              "%s"             // " AND parent_record_id=0"
+                          //              "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                          //              " AND (!business OR !only_business)"
+                          //              , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                          //              , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                          //              " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                    else
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                   // ", NULL AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM %s"
+                                                   " WHERE ((status ^ 0b%s) & 0b%s = 0)"
+                                                   , qp->sqltrec
+                                                   , buff_xor
+                                                   , buff_and
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                   " FROM record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                   " WHERE ((status ^ 0b%s) & 0b%s = 0)"
+                                                   "%s"             // " parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   , buff_xor
+                                                   , buff_and
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   );
+                           //             "%s"             // " AND parent_record_id=0"
+                           //             "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                           //             " AND (!business OR !only_business)"
+                           //             , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                           //             , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                           //             " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                }
 
-									// champ technique recordstatus ?
-									if(!sql[0] && strcmp(pfield, "recordstatus") == 0)
-									{
-										// convert status mask 01xx10x1x0110x0 to mask_and and mask_xor
-										char buff_and[65];	// 64 bits and nul
-										char buff_xor[65];	// 64 bits and nul
-										int i; l=MIN(strlen(pvalue), 64);
-										for(i=0; i<l; i++)
-										{
-											buff_and[i] = buff_xor[i] = '0';
-											switch(pvalue[i])
-											{
-												case '0':
-													buff_and[i] = '1';
-													break;
-												case '1':
-													buff_and[i] = buff_xor[i] = '1';
-													break;
-											}
-										}
-										if(i==0)	// fix 0b to 0b0;
-										{
-											buff_and[i] = buff_xor[i] = '0';
-											i++;
-										}
-										buff_and[i] = buff_xor[i] = '\0';
+                                if(!sql[0]) // it was not a technical field = it was a field of the bas (structure)
+                                {
+                                    // const char *sql_business = qp->business ? "" : "AND !prop.business";
 
-										if(*(qp->psortField))
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													", prop.value AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM %s INNER JOIN prop USING(record_id)"
-													" WHERE ((status ^ 0b%s) & 0b%s = 0) AND prop.name='%s'"
-													, qp->sqltrec
-													, buff_xor
-													, buff_and
-													, *(qp->psortField)
-													);
-										}
-										else
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													// ", NULL AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM %s"
-													" WHERE ((status ^ 0b%s) & 0b%s = 0)"
-													, qp->sqltrec
-													, buff_xor
-													, buff_and
-													);
-										}
-									}
+                                    for(char *p = pfield_esc; *p; p++)
+                                    {
+                                        if(*p >= 'a' && *p <= 'z')
+                                            *p += ('A' - 'a');
+                                    }
+                                    if(*(qp->psortField))
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
+                                                   ", propsort.value AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM (prop INNER JOIN %s USING(record_id))"
+                                                   " INNER JOIN prop AS propsort USING(record_id)"
+                                                   " WHERE prop.name='%s' AND prop.value%s'%s' AND (%s%s) AND propsort.name='%s'"
+                                                   , qp->sqltrec
+                                                   , pfield_esc
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , qp->business ? "!prop.business " : "1"
+                                                   , qp->business ? qp->business : ""
+                                                   , *(qp->psortField)
+                                                   );
+                                        */
+                                        // ===== Optimized =====
+                                        sprintfSQL(sql, "SELECT record.record_id, _tmpmask.coll_id"
+                                                   ", propsort.value AS skey"
+                                                   " FROM (prop INNER JOIN (record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)) USING(record_id))"
+                                                   " INNER JOIN prop AS propsort USING(record_id)"
+                                                   " WHERE prop.name='%s' AND prop.value%s%s"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND (!prop.business OR !only_business)"
+                                                   " AND propsort.name='%s'"
+                                                   , pfield_esc
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   , *(qp->psortField)
+                                                   );
+                           //             "%s"             // " AND parent_record_id=0"
+                           //             "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                           //             " AND (!business OR !only_business)"
+                           //             , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                           //             , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                           //             " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                    else
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
+                                                   // ", NULL AS skey"
+                                                   // ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM prop INNER JOIN %s USING(record_id)"
+                                                   " WHERE name='%s' AND value%s'%s' AND (%s%s)"
+                                                   , qp->sqltrec
+                                                   , pfield_esc
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , qp->business ? "!prop.business " : "1"
+                                                   , qp->business ? qp->business : ""
+                                                   );
+                                        */
+                                        // ===== Optimized =====
+                                        sprintfSQL(sql, "SELECT record.record_id, _tmpmask.coll_id"
+                                                   " FROM prop INNER JOIN (record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)) USING(record_id)"
+                                                   " WHERE name='%s' AND value%s%s"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND (!business OR !only_business)"
+                                                   , pfield_esc
+                                                   , math2sql[qp->n->type - PHRASEA_OP_EQUAL]
+                                                   , pvalue_esc
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   );
+                           //             "%s"             // " AND parent_record_id=0"
+                           //             "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                           //             " AND (!business OR !only_business)"
+                           //             , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                           //             , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                           //             " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id USING(record_id)"
+                                    }
+                                }
 
-									if(!sql[0]) // it was not a technical field = it was a field of the bas (structure)
-									{
-										// const char *sql_business = qp->business ? "" : "AND !prop.business";
+                                qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
+                            }
+                            else
+                            {
+                                // pfield or pvalue alloc error
+                            }
 
-										for(char *p = pfield_esc; *p; p++)
-										{
-											if(*p >= 'a' && *p <= 'z')
-												*p += ('A' - 'a');
-										}
-										if(*(qp->psortField))
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
-													", propsort.value AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM (prop INNER JOIN %s USING(record_id))"
-													" INNER JOIN prop AS propsort USING(record_id)"
-													" WHERE prop.name='%s' AND prop.value%s'%s' AND (%s%s) AND propsort.name='%s'"
-													, qp->sqltrec
-													, pfield_esc
-													, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-													, pvalue_esc
-													, qp->business ? "!prop.business " : "1"
-													, qp->business ? qp->business : ""
-													, *(qp->psortField)
-													);
-										}
-										else
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record.record_id, record.coll_id"
-													// ", NULL AS skey"
-													// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM prop INNER JOIN %s USING(record_id)"
-													" WHERE name='%s' AND value%s'%s' AND (%s%s)"
-													, qp->sqltrec
-													, pfield
-													, math2sql[qp->n->type - PHRASEA_OP_EQUAL]
-													, pvalue
-													, qp->business ? "!prop.business " : "1"
-													, qp->business ? qp->business : ""
-													);
-										}
-									}
+                            if(buff_field_esc)
+                                EFREE(buff_field_esc);
+                            if(buff_value_esc)
+                                EFREE(buff_value_esc);
 
-									qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
-								}
-								else
-								{
-									// pfield or pvalue alloc error
-								}
-
-								if(pfield_esc)
-									EFREE(pfield_esc);
-								if(pvalue_esc)
-									EFREE(pvalue_esc);
-							}
 						}
 					}
 				}
@@ -1292,101 +1765,226 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 										add_assoc_string(qp->result, (char *) "value", fvalue2, true);
 								}
 
-								if(qp->rid != 0)
-								{
-									// ===== OK =====
-									sprintfSQL(sql, "SELECT record_id, coll_id"
-											// ", NULL AS skey"
-											// ", NULL AS hitstart, NULL AS hitlen, NULL AS iw"
-											// ", NULL AS sha256"
-											" FROM record WHERE record_id='%ld'"
-											, qp->rid
-											);
+                                if(pfield[0] == '*' && pfield[1] == '\0')
+                                {
+                                    // fieldname is '*' : avoid test on name
+                                    if(*(qp->psortField))
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                   ", prop.value AS skey"
+                                                   ", hitstart, hitlen"
+                                                   // ", NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM (thit INNER JOIN %s USING(record_id))"
+                                                   " INNER JOIN prop USING(record_id)"
+                                                   " WHERE (%s) AND (%s%s) AND prop.name='%s'"
+                                                   , qp->sqltrec
+                                                   , fvalue1
+                                                   , qp->business ? "!thit.business " : "1"
+                                                   , qp->business ? qp->business : ""
+                                                   , *(qp->psortField)
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                   ", prop.value AS skey"
+                                                   ", hitstart, hitlen"
+                                                   " FROM (thit FORCE INDEX(value) INNER JOIN"
+                                                   " (record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)) USING(record_id))"
+                                                   " INNER JOIN prop USING(record_id)"
+                                                   " WHERE (%s)"    // "value LIKE 'T2d7d%'"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND (!thit.business OR !only_business)"
+                                                   " AND prop.name='%s'"
+                                                   , fvalue1
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   , *(qp->psortField)
+                                                   );
+                                    }
+                                    else
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                   ", NULL AS skey"
+                                                   ", hitstart, hitlen"
+                                                   // ", NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM thit INNER JOIN %s USING(record_id)"
+                                                   " WHERE (%s) AND (%s%s)"
+                                                   , qp->sqltrec
+                                                   , fvalue1
+                                                   , qp->business ? "!thit.business " : "1"
+                                                   , qp->business ? qp->business : ""
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql,
+                                                   "SELECT record_id, _tmpmask.coll_id"
+                                                   ", NULL AS skey"
+                                                   ", hitstart, hitlen"
+                                                   " FROM (thit FORCE INDEX(value) INNER JOIN"
+                                                   " (record STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)) USING(record_id))"
+                                                   " WHERE (%s)"    // "value LIKE 'T2d7d%'"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND (!business OR !only_business)"
+                                                   , fvalue1
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                        /*
+                                        sprintfSQL(sql,
+                                        //  "SELECT record_id, record.coll_id"
+                                                   "SELECT record_id, prid0.coll_id"
+                                                   ", NULL AS skey"
+                                                   ", hitstart, hitlen"
+                                                   // ", NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM thit INNER JOIN %s USING(record_id)"
+                                                   " WHERE (%s) AND (%s%s)"
+                                        //  , qp->sqltrec
+                                                   , "(prid0 INNER JOIN _tmpmask USING(coll_id))"
+                                                   , fvalue1
+                                                   , qp->business ? "!thit.business " : "1"
+                                        //  , qp->business ? qp->business : ""
+                                                   , qp->business ? "OR !only_business" : ""
+                                                   );
+                                        sprintfSQL(sql,
+                                                   "SELECT record_id, coll_id" // , NULL AS skey, hitstart, hitlen"
+                                                   " FROM th_test INNER JOIN _tmpmask USING(coll_id)"
+                                                   " WHERE LEFT(value, 5)='T2d7d' AND (!business OR !only_business)"
+                                                   );
+                                        sprintfSQL(sql,
+                                                   "SELECT record_id, coll_id"
+                                                   ", NULL AS skey"
+                                                   ", hitstart, hitlen"
+                                                   " FROM (thit FORCE INDEX(value) INNER JOIN record USING(record_id))"
+                                                   " INNER JOIN _tmpmask USING(coll_id)"
+                                                   " WHERE value LIKE 'T2d7d%'"
+                                                   " AND parent_record_id=0 AND (!business OR !only_business)"
+                                                   " ORDER BY record_id, coll_id"
+                                                   );
+                                        sprintfSQL(sql,
+                                                   "SELECT record_id, coll_id"
+                                                   ", NULL AS skey"
+                                                   ", hitstart, hitlen"
+                                                   " FROM th_test"
+                                                   " INNER JOIN _tmpmask USING(coll_id)"
+                                                   " WHERE value LIKE 'T2d7d%'"
+                                                   " AND (!business OR !only_business)"
+                                                   " ORDER BY record_id, coll_id"
+                                                   );
+                                        sprintfSQL(sql,
+                                                   "SELECT record_id, _tmpmask.coll_id"
+                                                   ", NULL AS skey"
+                                                   ", hitstart, hitlen"
+                                                   " FROM th_test"
+                                                   " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=th_test.coll_id)"
+                                                   " WHERE value LIKE 'T2d7d%'"
+                                                   " AND (!business OR !only_business)"
+                                             //      " ORDER BY record_id, coll_id"
+                                                   );
+                                        */
+                                        );
+                                    }
+                                }
+                                else
+                                {
+                                    // there is a fieldname, must be included in sql
+                                    if(*(qp->psortField))
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                ", prop.value AS skey"
+                                                ", hitstart, hitlen"
+                                                // ", NULL AS iw"
+                                                // ", NULL AS sha256"
+                                                " FROM (thit INNER JOIN %s USING(record_id))"
+                                                " INNER JOIN prop USING(record_id)"
+                                                " WHERE (%s) AND (%s%s) AND thit.name='%s' AND prop.name='%s'"
+                                                , qp->sqltrec
+                                                , fvalue1
+                                                , qp->business ? "!thit.business " : "1"
+                                                , qp->business ? qp->business : ""
+                                                , pfield_esc
+                                                , *(qp->psortField)
+                                                );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                   ", prop.value AS skey"
+                                                   ", hitstart, hitlen"
+                                                   " FROM (thit FORCE INDEX(value) INNER JOIN record USING(record_id))"
+                                                   " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                   " INNER JOIN prop USING(record_id)"
+                                                   " WHERE (%s)"    // "value LIKE 'T2d7d%'"
+                                                   " AND thit.name='%s'"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND (!thit.business OR !only_business)"
+                                                   " AND prop.name='%s'"
+                                                   , fvalue1
+                                                   , pfield_esc
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   , *(qp->psortField)
+                                                   );
+                                    }
+                                    else
+                                    {
+                                        /*
+                                        // ===== OK =====
+                                        sprintfSQL(sql, "SELECT record_id, record.coll_id"
+                                                   ", NULL AS skey"
+                                                   ", hitstart, hitlen"
+                                                   // ", NULL AS iw"
+                                                   // ", NULL AS sha256"
+                                                   " FROM thit INNER JOIN %s USING(record_id)"
+                                                   " WHERE (%s) AND (%s%s) AND thit.name='%s'"
+                                                   , qp->sqltrec
+                                                   , fvalue1
+                                                   , qp->business ? "!thit.business " : "1"
+                                                   , qp->business ? qp->business : ""
+                                                   , pfield_esc
+                                                   );
+                                        */
+                                        // ===== Optimized ? =====
+                                        sprintfSQL(sql, "SELECT record_id, _tmpmask.coll_id"
+                                                   ", NULL AS skey"
+                                                   ", hitstart, hitlen"
+                                                   " FROM (thit FORCE INDEX(value) INNER JOIN record USING(record_id))"
+                                                   " STRAIGHT_JOIN _tmpmask ON(_tmpmask.coll_id=record.coll_id)"
+                                                   " WHERE (%s)"    // "value LIKE 'T2d7d%'"
+                                                   " AND thit.name='%s'"
+                                                   "%s"             // " AND parent_record_id=0"
+                                                   "%s"             // " AND ((status ^ mask_xor) & mask_and)=0"
+                                                   "%s%s"
+                                                   " AND (!business OR !only_business)"
+                                                   , fvalue1
+                                                   , pfield_esc
+                                                   , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
+                                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
+                                                   , qp->srid ? " AND record.record_id=" : ""
+                                                   , qp->srid ? qp->srid : ""
+                                                   );
+                                    }
+                                }
+                                qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
 
-									qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
-								}
-								else
-								{
-									if(pfield[0] == '*' && pfield[1] == '\0')
-									{
-										// fieldname is '*' : avoid test on name
-										if(*(qp->psortField))
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													", prop.value AS skey"
-													", hitstart, hitlen"
-													// ", NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM (thit INNER JOIN %s USING(record_id))"
-													" INNER JOIN prop USING(record_id)"
-													" WHERE (%s) AND (%s%s) AND prop.name='%s'"
-													, qp->sqltrec
-													, fvalue1
-													, qp->business ? "!thit.business " : "1"
-													, qp->business ? qp->business : ""
-													, *(qp->psortField)
-													);
-										}
-										else
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													", NULL AS skey"
-													", hitstart, hitlen"
-													// ", NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM thit INNER JOIN %s USING(record_id)"
-													" WHERE (%s) AND (%s%s)"
-													, qp->sqltrec
-													, fvalue1
-													, qp->business ? "!thit.business " : "1"
-													, qp->business ? qp->business : ""
-													);
-										}
-									}
-									else
-									{
-										// there is a fieldname, must be included in sql
-										if(*(qp->psortField))
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													", prop.value AS skey"
-													", hitstart, hitlen"
-													// ", NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM (thit INNER JOIN %s USING(record_id))"
-													" INNER JOIN prop USING(record_id)"
-													" WHERE (%s) AND (%s%s) AND thit.name='%s' AND prop.name='%s'"
-													, qp->sqltrec
-													, fvalue1
-													, qp->business ? "!thit.business " : "1"
-													, qp->business ? qp->business : ""
-													, pfield_esc
-													, *(qp->psortField)
-													);
-										}
-										else
-										{
-											// ===== OK =====
-											sprintfSQL(sql, "SELECT record_id, record.coll_id"
-													", NULL AS skey"
-													", hitstart, hitlen"
-													// ", NULL AS iw"
-													// ", NULL AS sha256"
-													" FROM thit INNER JOIN %s USING(record_id)"
-													" WHERE (%s) AND (%s%s) AND thit.name='%s'"
-													, qp->sqltrec
-													, fvalue1
-													, qp->business ? "!thit.business " : "1"
-													, qp->business ? qp->business : ""
-													, pfield_esc
-													);
-										}
-									}
-									qp->sqlconn->phrasea_query(sql, qp, &sqlerr);
-								}
 							}
 							else
 							{
@@ -1411,23 +2009,45 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objr);
 
 					Cquerytree2Parm qpl(qp->n->content.boperator.l, 'L', qp->depth + 1, qp->sqlconn,
-									 qp->host,
-									 qp->port,
-									 qp->user,
-									 qp->pwd,
-									 qp->base,
-									 qp->tmptable,
-									 qp->sqltmp,
-									 qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+                                        qp->host,
+                                        qp->port,
+                                        qp->user,
+                                        qp->pwd,
+                                        qp->base,
+                                        // qp->tmptable,
+                                        // qp->sqltmp,
+                                        qp->sqlmutex,
+                                        objl,
+                                        //qp->sqltrec,
+                                        qp->multidoc_mode,
+                                        qp->use_mask,
+                                        qp->psortField,
+                                        qp->sortMethod,
+                                        // qp->business,
+                                        qp->stemmer,
+                                        qp->lng,
+                                        // qp->_rid,
+                                        qp->srid);
 					Cquerytree2Parm qpr(qp->n->content.boperator.r, 'R', qp->depth + 1, qp->sqlconn,
-									 qp->host,
-									 qp->port,
-									 qp->user,
-									 qp->pwd,
-									 qp->base,
-									 qp->tmptable,
-									 qp->sqltmp,
-									 qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+                                        qp->host,
+                                        qp->port,
+                                        qp->user,
+                                        qp->pwd,
+                                        qp->base,
+                                        // qp->tmptable,
+                                        // qp->sqltmp,
+                                        qp->sqlmutex,
+                                        objr,
+                                        //qp->sqltrec,
+                                        qp->multidoc_mode,
+                                        qp->use_mask,
+                                        qp->psortField,
+                                        qp->sortMethod,
+                                        // qp->business,
+                                        qp->stemmer,
+                                        qp->lng,
+                                        // qp->_rid,
+                                        qp->srid);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
@@ -1489,23 +2109,45 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objr);
 
 					Cquerytree2Parm qpl(qp->n->content.boperator.l, 'L', qp->depth + 1, qp->sqlconn,
-									 qp->host,
-									 qp->port,
-									 qp->user,
-									 qp->pwd,
-									 qp->base,
-									 qp->tmptable,
-									 qp->sqltmp,
-									 qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+                                        qp->host,
+                                        qp->port,
+                                        qp->user,
+                                        qp->pwd,
+                                        qp->base,
+                                        // qp->tmptable,
+                                        // qp->sqltmp,
+                                        qp->sqlmutex,
+                                        objl,
+                                        //qp->sqltrec,
+                                        qp->multidoc_mode,
+                                        qp->use_mask,
+                                        qp->psortField,
+                                        qp->sortMethod,
+                                        // qp->business,
+                                        qp->stemmer,
+                                        qp->lng,
+                                        // qp->_rid,
+                                        qp->srid);
 					Cquerytree2Parm qpr(qp->n->content.boperator.r, 'R', qp->depth + 1, qp->sqlconn,
-									 qp->host,
-									 qp->port,
-									 qp->user,
-									 qp->pwd,
-									 qp->base,
-									 qp->tmptable,
-									 qp->sqltmp,
-									 qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+                                        qp->host,
+                                        qp->port,
+                                        qp->user,
+                                        qp->pwd,
+                                        qp->base,
+                                        // qp->tmptable,
+                                        // qp->sqltmp,
+                                        qp->sqlmutex,
+                                        objr,
+                                        //qp->sqltrec,
+                                        qp->multidoc_mode,
+                                        qp->use_mask,
+                                        qp->psortField,
+                                        qp->sortMethod,
+                                        // qp->business,
+                                        qp->stemmer,
+                                        qp->lng,
+                                        // qp->_rid,
+                                        qp->srid);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
@@ -1565,23 +2207,45 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objr);
 
 					Cquerytree2Parm qpl(qp->n->content.boperator.l, 'L', qp->depth + 1, qp->sqlconn,
-									 qp->host,
-									 qp->port,
-									 qp->user,
-									 qp->pwd,
-									 qp->base,
-									 qp->tmptable,
-									 qp->sqltmp,
-									 qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+                                        qp->host,
+                                        qp->port,
+                                        qp->user,
+                                        qp->pwd,
+                                        qp->base,
+                                        // qp->tmptable,
+                                        // qp->sqltmp,
+                                        qp->sqlmutex,
+                                        objl,
+                                        //qp->sqltrec,
+                                        qp->multidoc_mode,
+                                        qp->use_mask,
+                                        qp->psortField,
+                                        qp->sortMethod,
+                                        // qp->business,
+                                        qp->stemmer,
+                                        qp->lng,
+                                        // qp->_rid,
+                                        qp->srid);
 					Cquerytree2Parm qpr(qp->n->content.boperator.r, 'R', qp->depth + 1, qp->sqlconn,
-									 qp->host,
-									 qp->port,
-									 qp->user,
-									 qp->pwd,
-									 qp->base,
-									 qp->tmptable,
-									 qp->sqltmp,
-									 qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+                                        qp->host,
+                                        qp->port,
+                                        qp->user,
+                                        qp->pwd,
+                                        qp->base,
+                                        // qp->tmptable,
+                                        // qp->sqltmp,
+                                        qp->sqlmutex,
+                                        objr,
+                                        //qp->sqltrec,
+                                        qp->multidoc_mode,
+                                        qp->use_mask,
+                                        qp->psortField,
+                                        qp->sortMethod,
+                                        // qp->business,
+                                        qp->stemmer,
+                                        qp->lng,
+                                        // qp->_rid,
+                                        qp->srid);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
@@ -1639,23 +2303,45 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
 					array_init(objr);
 
 					Cquerytree2Parm qpl(qp->n->content.boperator.l, 'L', qp->depth + 1, qp->sqlconn,
-									 qp->host,
-									 qp->port,
-									 qp->user,
-									 qp->pwd,
-									 qp->base,
-									 qp->tmptable,
-									 qp->sqltmp,
-									 qp->sqlmutex, objl, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+                                        qp->host,
+                                        qp->port,
+                                        qp->user,
+                                        qp->pwd,
+                                        qp->base,
+                                        // qp->tmptable,
+                                        // qp->sqltmp,
+                                        qp->sqlmutex,
+                                        objl,
+                                        //qp->sqltrec,
+                                        qp->multidoc_mode,
+                                        qp->use_mask,
+                                        qp->psortField,
+                                        qp->sortMethod,
+                                        // qp->business,
+                                        qp->stemmer,
+                                        qp->lng,
+                                        // qp->_rid,
+                                        qp->srid);
 					Cquerytree2Parm qpr(qp->n->content.boperator.r, 'R', qp->depth + 1, qp->sqlconn,
-									 qp->host,
-									 qp->port,
-									 qp->user,
-									 qp->pwd,
-									 qp->base,
-									 qp->tmptable,
-									 qp->sqltmp,
-									 qp->sqlmutex, objr, qp->sqltrec, qp->psortField, qp->sortMethod, qp->business, qp->stemmer, qp->lng, qp->rid);
+                                        qp->host,
+                                        qp->port,
+                                        qp->user,
+                                        qp->pwd,
+                                        qp->base,
+                                        // qp->tmptable,
+                                        // qp->sqltmp,
+                                        qp->sqlmutex,
+                                        objr,
+                                        //qp->sqltrec,
+                                        qp->multidoc_mode,
+                                        qp->use_mask,
+                                        qp->psortField,
+                                        qp->sortMethod,
+                                        // qp->business,
+                                        qp->stemmer,
+                                        qp->lng,
+                                        // qp->_rid,
+                                        qp->srid);
 					if(MYSQL_THREAD_SAFE)
 					{
 #ifdef WIN32
