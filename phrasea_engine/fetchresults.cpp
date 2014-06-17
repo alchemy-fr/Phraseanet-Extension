@@ -282,5 +282,7 @@ spl_ce_UnexpectedValueException;
 			EFREE(fname);
 		}
 	}
+    
+//    log("phrasea_fetch_results", return_value);
 }
 
