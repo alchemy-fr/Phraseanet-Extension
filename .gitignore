@@ -38,3 +38,7 @@ modules
 phrasea2.so
 phrasea2.la
 /build/
+spyc.php
+unicode.php
+check_extension.php
+p4string.php
