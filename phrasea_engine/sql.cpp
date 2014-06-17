@@ -434,14 +434,8 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 					bool ok_to_fetch = true;
 					// Now buffer all results to client (optional step)
 					startChrono(chrono);
-					ok_to_fetch = (mysql_stmt_store_result(stmt) == 0);
+//					ok_to_fetch = (mysql_stmt_store_result(stmt) == 0);
 					qp->n->time_sqlStore = stopChrono(chrono);
-
-					//					if(mutex_locked)
-					//					{
-					//						pthread_mutex_unlock(qp->sqlmutex);
-					//						mutex_locked = false;
-					//					}
 
 					// fetch results
 					if(ok_to_fetch)
@@ -450,11 +444,8 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 						long lastrid = -1;
 
 						startChrono(chrono);
-//		qp->n->n = 0;
 						while(mysql_stmt_fetch(stmt) == 0)
 						{
-//		qp->n->n++;
-
 							rid = int_result[SQLFIELD_RID];
 
 							CANSWER *answer;
@@ -463,8 +454,6 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 							{
 								answer->rid = rid;
 
-//								insert_ret = qp->n->answers.insert(answer);
-//								if(insert_ret.second == false)
 								where = qp->n->answers.find(answer);
 								if(where != qp->n->answers.end())
 								{
@@ -557,6 +546,4 @@ void SQLCONN::phrasea_query(const char *sql, Cquerytree2Parm *qp, char **sqlerr)
 //	mysql_thread_end();
 }
 
-// send a 'leaf' query to a databox
-// results are returned into the node (qp->n)
 
