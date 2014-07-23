@@ -283,7 +283,8 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
                                 else
                                 break;
                             }
-                            sqlcoll << "')>0";
+
+                            sqlcoll << "')=0";
                         }
                         else
                         {

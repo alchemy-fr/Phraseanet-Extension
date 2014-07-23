@@ -1,3 +1,8 @@
+
+1.22.0.1
+============== FOR TEST ONLY, DO NOT USE IN PRODUCTION ==============
+fix: search on business fields was inverted (PHRAS-203)
+
 1.22.0.0
 ============== FOR TEST ONLY, DO NOT USE IN PRODUCTION ==============
 faster sql
