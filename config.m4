@@ -4,12 +4,15 @@ dnl config.m4 for extension phrasea2
 PHP_ARG_ENABLE(phrasea2, whether to enable phrasea2 support,
 [  --enable-phrasea2           Enable phrasea2 support])
 
+PHP_ARG_ENABLE(phrasea2-log,  enable extension to log in /tmp/phraseanet-extension.log,
+[  --enable-phrasea2-log      enable extension to log in /tmp/phraseanet-extension.log], no, no)
+
 dnl PHP_ARG_WITH(phrasea2, for phrasea2 support,
 dnl [  --with-phrasea2[=DIR]      Include phrasea2 support. DIR is the phrasea2 base directory])
 
 if test "$PHP_PHRASEA2" != "no"; then
     dnl  PHP_EXPAND_PATH($MYSQL_INCLUDE, MYSQL_INCLUDE)
-
+    
     dnl *************** get version ****************
     AC_MSG_CHECKING([====== phrasea extension version number])
     PHRASEAVERSION=
@@ -58,6 +61,12 @@ else
   PHP_DEBUG=0
   ZEND_DEBUG=no
 fi
+
+    dnl Check whether to enable loging
+    if test "$PHP_PHRASEA2_LOG" == "yes"; then
+        dnl Yes, so set the C macro
+        AC_DEFINE(USE_PHRASEA2_LOG,1,[Include loging support in phrasea2])
+    fi
 
 
     # PHP_ADD_LIBRARY_WITH_PATH($MYSQL_LIBNAME, $MYSQL_LIB_DIR, PHRASEA2_SHARED_LIBADD)

@@ -357,7 +357,7 @@ PHP_FUNCTION(phrasea_conn)
 
 void log(const char *msg, zval *val)
 {
-//    return;
+#ifdef USE_PHRASEA2_LOG
     FILE *fp = fopen("/tmp/phraseanet-extension.log", "ab");
     if(fp == NULL)
     {
@@ -391,5 +391,6 @@ void log(const char *msg, zval *val)
     }
     fputc('\n', fp);
     fclose(fp);
+#endif
 }
 
