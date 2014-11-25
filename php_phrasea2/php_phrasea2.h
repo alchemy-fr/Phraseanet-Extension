@@ -44,4 +44,7 @@ extern zend_module_entry phrasea2_module_entry;
 // extern ZEND_DECLARE_MODULE_GLOBALS(phrasea2)
 ZEND_EXTERN_MODULE_GLOBALS(phrasea2)
 
+void log(const char *msg, zval *val);
+
+
 #endif	/* PHP_PHRASEA2_H */

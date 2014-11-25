@@ -5,6 +5,8 @@
 #include "thread.h"
 #include "sql.h"
 
+/* ===== DESACTIVATED 20140522 ====
+
 
 CNODE *qtree2tree(zval **root, int depth); // in qtree.cpp
 void freetree(CNODE *n); // in qtree.cpp
@@ -49,7 +51,9 @@ ZEND_FUNCTION(phrasea_highlight)
 	startChrono(time_phpfct);
 
 	zval *zqarray;
-	long zsbid, zrid;
+	long zsbid;
+    long zrid;
+    char srid[50];
 	long zdebug = 0;
 
 	char *zsrchlng = NULL;
@@ -140,6 +144,8 @@ ZEND_FUNCTION(phrasea_highlight)
 				CMutex sqlmutex;
 				char *zsortfield = NULL;
 				char **pzsortfield = &zsortfield;
+                
+                sprintf(srid, "%ld", zrid);
 
 				Cquerytree2Parm qp(
 									query,
@@ -152,20 +158,22 @@ ZEND_FUNCTION(phrasea_highlight)
 									(char *)row->field(5, "root"),			// user
 									(char *)row->field(6, ""),				// pwd
 									(char *)row->field(4, "dbox"),			// base
-									NULL,						// tmptable
+						//			NULL,						// tmptable
 
-									NULL,		// sqltmp
+						//			NULL,		// sqltmp
 
 									&sqlmutex,
 									zqueries,
-									"record",
-									/*t_collmask,*/
+						//			"record",
+                                   -1,                  // dont use parent_record_id
+                                   false,               // don't use mask
 									pzsortfield,				// sortfield,
 									0,							// sortmethod,
-									"",							// sqlbusiness_c,
+						//			"",							// sqlbusiness_c,
 									stemmer,						// stemmer
 									srch_lng_esc,						// srch_lng_esc
-									zrid			// new : only this rid
+						//			zrid,			// new : only this rid
+                                    srid           // filter with this rid (as string)
 						);
 
 				querytree2((void *) &qp);
@@ -224,11 +232,14 @@ ZEND_FUNCTION(phrasea_highlight)
 
 	if(zdebug)
 		add_assoc_double(return_value, (char *) "time_phpfct", stopChrono(time_phpfct));
+
+    log("phrasea_highlight", return_value);
 }
 
 
 ZEND_FUNCTION(phrasea_public_query)
 {
+    RETURN_FALSE;
 	CHRONO time_phpfct;
 	startChrono(time_phpfct);
 
@@ -487,8 +498,8 @@ ZEND_FUNCTION(phrasea_public_query)
 
 	if(zdebug)
 		add_assoc_double(return_value, (char *) "time_phpfct", stopChrono(time_phpfct));
-}
 
+}
 
 
 void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm)
@@ -550,45 +561,104 @@ void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm)
 						if(qp3_parm->zquery)
 							add_assoc_double(qp3_parm->zquery, (char *) "time_connect", stopChrono(time_connect));
 
-						CHRONO chrono;
+                        
+                        
+                        
+                        
+                        
+                        
+
+						// build the sql that filter collections
+						CHRONO time_tmpmask;
+						startChrono(time_tmpmask);
+                        
+						if(zsitelen > 256)
+							zsitelen = 256;
+                        
+						char zsite_esc[513];
+						zsite_esc[conn->escape_string(zsite, zsitelen, zsite_esc)] = '\0';
+                        
+						std::stringstream sqlcoll;
+						// SECURITY : userid is type long
+						sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` (PRIMARY KEY(coll_id), KEY(only_business)) ENGINE=MEMORY SELECT coll_id, mask_xor, mask_and, ";
+                        
+                        if(ZEND_NUM_ARGS() >= 10)	// field 10 is "search_business"
+                        {
+                            sqlcoll << " FIND_IN_SET(coll_id, '";
+                            zval **tmp1;
+                            bool first = true;
+                            int n = 0;
+                            
+                            for(int i=0; true; i++)
+                            {
+                                if(zend_hash_index_find(HASH_OF(zbusiness), i, (void **) &tmp1) == SUCCESS)
+                                {
+                                    if(Z_TYPE_PP(tmp1) == IS_LONG)
+                                    {
+                                        if(!first)
+                                        {
+                                            sqlcoll << ",";
+                                        }
+                                        sqlcoll << Z_LVAL_P(*tmp1);
+                                        first = false;
+                                        n++;
+                                    }
+                                }
+                                else
+                                    break;
+                            }
+                            sqlcoll << "')>0";
+                        }
+                        else
+                        {
+                            sqlcoll << " TRUE";
+                        }
+                        
+                        
+                        sqlcoll << " AS only_business FROM collusr WHERE site='" << zsite_esc << "' AND usr_id=" << userid << " AND coll_id";
+						
+                        
+                        
+                        
+                        if(t_collid.size() == 1)
+						{
+							// SECURITY : t_collid[i] is type long
+							sqlcoll << '=' << t_collid.begin()->first;
+						}
+						else
+						{
+							// SECURITY : t_collid[i] is type long
+							sqlcoll << " IN (-1"; // begin with a fake number (-1) allows to insert a comma each time (avoid a test)
+							std::map<long, long>::iterator it;
+							for(it = t_collid.begin(); it != t_collid.end(); it++)
+								sqlcoll << ',' << it->first;
+							sqlcoll << ')';
+						}
+						conn->query((char *) (sqlcoll.str().c_str())); // CREATE _tmpmask ...
+                        
+                        add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c_str()), true);
+                        
+						add_assoc_double(return_value, (char *) "time_tmpmask", stopChrono(time_tmpmask));
+
+						
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        CHRONO chrono;
 						startChrono(chrono);
 
 						char lbuff[40];
 
 						std::map<long, long>::iterator it_coll;
 						int i;
-						std::string sqltmp;
-						sqltmp = "INSERT INTO `_tmpmask` (coll_id) VALUES ";
-						for(i=0, it_coll = t_collid.begin(); it_coll != t_collid.end(); it_coll++, i++)
-						{
-							if(i>0)
-								sqltmp += ',';
-							sprintf(lbuff, "(%lu)", it_coll->first);
-							sqltmp += lbuff;
-						}
-
-						// small sql that joins record and collusr
-						char *sqltrec = (char *)"(record)";
-
-						if(qp3_parm->multidocMode == PHRASEA_MULTIDOC_ALL)
-						{
-							sqltrec = (char *)"(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id)";
-							// sprintf(sqltrec, "(record INNER JOIN %s ON %s.coll_id=record.coll_id)", tmptable, tmptable);
-						}
-						else
-						{
-							if(qp3_parm->multidocMode == PHRASEA_MULTIDOC_DOCONLY)
-							{
-								sqltrec = (char *)"(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id AND parent_record_id=0)";
-								// sprintf(sqltrec, "(record INNER JOIN %s ON %s.coll_id=record.coll_id AND parent_record_id=0)", tmptable, tmptable);
-							}
-							else
-							{
-								sqltrec = (char *)"(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id AND parent_record_id=1)";
-								// sprintf(sqltrec, "(record INNER JOIN %s ON %s.coll_id=record.coll_id AND parent_record_id=1)", tmptable, tmptable);
-							}
-						}
-
+                        
 						// change the php query to a tree of nodes
 						qp3_parm->query = qtree2tree(&(qp3_parm->zqarray), 0);
 
@@ -641,17 +711,18 @@ void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm)
 										 (char *)row->field(6, ""),				// pwd
 										 (char *)row->field(4, "dbox"),			// base
 //										 (char *)tmptable,						// tmptable
-										 (char *)NULL,						// tmptable
 
-										 (char *)sqltmp.c_str(),
+//                                         NULL, // (char *)sqltmp.c_str(),
 
 										 &sqlmutex,
 										 qp3_parm->zquery,
-										 sqltrec,
-										 /*t_collmask,*/
+						//				 sqltrec,
+                                         qp3_parm->multidocMode,
+                                         false,
+										 // t_collmask
 										 pzsortfield,
 										 qp3_parm->sortmethod,
-										 qp3_parm->sqlbusiness_c,
+						//				 qp3_parm->sqlbusiness_c,
 										 stemmer,
 										 srch_lng_esc,
 										 0				//	0 : full query, do not filter on rid
@@ -753,3 +824,6 @@ void phrasea_public_query_c(PHRASEA_QUERY_PARM *qp3_parm)
 	}
 
 }
+
+===== DESACTIVATED 20140522 ==== */
+

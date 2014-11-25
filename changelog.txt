@@ -1,3 +1,32 @@
+1.22.1.0
+added option "--enable-phrasea2-log" to .configure
+when set, extension logs some ops. in /tmp/phraseanet-extension.log
+    ex. :
+    ./configure --enable-phrasea2-log
+nb. : don't forget to do a phpize before configure
+todo : windows version.
+
+
+1.22.0.1
+============== FOR TEST ONLY, DO NOT USE IN PRODUCTION ==============
+fix: search on business fields was inverted (PHRAS-203)
+
+1.22.0.0
+============== FOR TEST ONLY, DO NOT USE IN PRODUCTION ==============
+faster sql
+disabled functions (not used in phraseanet) :
+phrasea_public_query()
+phrasea_highlight()
+log results in /tmp/phraseanet-extension.log
+
+
+1.21.3.0
+============== FOR TEST ONLY, DO NOT USE IN PRODUCTION ==============
+some (heavy) infos removed from sql "appbox.cache.session" :
+- structure of bases
+- prefs for collections
+todo : really remove unused fields (for now data is set to "")
+
 1.21.2.3
 compiled for windows (no code change)
 

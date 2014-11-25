@@ -57,8 +57,8 @@ static zend_function_entry phrasea2_functions[] = {
 	PHP_FE(phrasea_clear_cache, NULL)
 	PHP_FE(phrasea_close_session, NULL)
 	PHP_FE(phrasea_query2, NULL)
-	PHP_FE(phrasea_highlight, NULL)
-	PHP_FE(phrasea_public_query, NULL)
+//	PHP_FE(phrasea_highlight, NULL)
+//	PHP_FE(phrasea_public_query, NULL)
 	PHP_FE(phrasea_fetch_results, NULL)
 	PHP_FE(phrasea_utf8_convert_to, NULL)
 	{
@@ -269,6 +269,7 @@ PHP_FUNCTION(phrasea_info)
 	SQLCONN *epublisher = NULL;
 
 	array_init(return_value);
+	add_assoc_string(return_value, (char *) "hello", (char *)"world3", true);
 	add_assoc_string(return_value, (char *) "version", (char *)QUOTE(PHDOTVERSION), true);
 	add_assoc_string(return_value, (char *) "mysql_client", (char *) (mysql_get_client_info()), true);
 	add_assoc_bool(return_value, (char *) "mysql_thread_safe", mysql_thread_safe());
@@ -353,3 +354,43 @@ PHP_FUNCTION(phrasea_conn)
 		RETURN_FALSE;
 	}
 }
+
+void log(const char *msg, zval *val)
+{
+#ifdef USE_PHRASEA2_LOG
+    FILE *fp = fopen("/tmp/phraseanet-extension.log", "ab");
+    if(fp == NULL)
+    {
+        return;
+    }
+    
+    if(msg != NULL)
+    {
+        fprintf(fp, "=== %s ===\n", msg);
+    }
+    
+    if(val != NULL)
+    {
+        zval fname, *args[2], retval;
+        ZVAL_STRING(&fname, "var_export", 0);
+        
+        args[0] = val;
+        MAKE_STD_ZVAL(args[1]);
+        ZVAL_BOOL(args[1], true);
+        
+        //    TSRMLS_FETCH();
+        if (call_user_function(
+                               CG(function_table), NULL, &fname,
+                               &retval, 2, args TSRMLS_CC
+                               ) == SUCCESS )
+        {
+            fwrite(Z_STRVAL(retval), Z_STRLEN(retval), 1, fp);
+        }
+        zval_dtor(&retval);
+        zval_ptr_dtor(&args[1]);
+    }
+    fputc('\n', fp);
+    fclose(fp);
+#endif
+}
+

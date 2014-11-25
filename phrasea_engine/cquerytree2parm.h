@@ -25,19 +25,23 @@ class Cquerytree2Parm
 		char *user; //								 row->field(5, "root"),			// user
 		char *pwd;	//								 row->field(6, ""),				// pwd
 		char *base;	//								 row->field(4, "dbox"),			// base
-		char *tmptable;	//								 tmptable						// tmptable
+//		char *tmptable;	//								 tmptable						// tmptable
 
-		char *sqltmp;			// sql create tmp
+//		char *sqltmp;			// sql create tmp
 
 		zval *result;
-		const char *sqltrec;
+		// const char *sqltrec;
+        int multidoc_mode;
+        bool use_mask;
 		char **psortField;
 		int sortMethod;
-		const char *business;
+		// const char *business;
 		CMutex *sqlmutex;
 		struct sb_stemmer *stemmer;
 		const char *lng;
-		long rid;
+//		long _rid;
+        const char *srid;
+    
 		Cquerytree2Parm(
 				CNODE *n,
 				char branch,
@@ -49,19 +53,22 @@ class Cquerytree2Parm
 				char *user,
 				char *pwd,
 				char *base,
-				char *tmptable,
+			//	char *tmptable,
 
-				char *sqltmp,
+			//	char *sqltmp,
 
 				CMutex *sqlmutex,
 				zval *result,
-				const char *sqltrec,
+			//	const char *sqltrec,
+                int multidoc_mode,
+                bool use_mask,
 				char **psortField,
 				int sortMethod,
-				const char * business,
+			//	const char * business,
 				sb_stemmer *stemmer,
 				const char *lng,
-				const unsigned long rid
+			//	const unsigned long _rid,
+                const char *srid
 			);
 		~Cquerytree2Parm();
 };

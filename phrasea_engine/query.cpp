@@ -62,7 +62,7 @@ ZEND_FUNCTION(phrasea_query2)
 	int sortorder = 0; // no sort
 	int sortmethod = SORTMETHOD_STR;
 
-	char *sqlbusiness_c = NULL;
+//	char *sqlbusiness_c = NULL;
 
 	char *zsrchlng = NULL;
 	int zsrchlnglen;
@@ -136,6 +136,7 @@ ZEND_FUNCTION(phrasea_query2)
 		if(zsortfieldlen == 0)
 			zsortfield = NULL;
 	}
+/*
 	if(ZEND_NUM_ARGS() >= 10)	// field 10 is "search_business"
 	{
 		std::stringstream sqlbusiness_strm;
@@ -173,6 +174,7 @@ ZEND_FUNCTION(phrasea_query2)
 				sqlbusiness_c[0] = '\0';
 		}
 	}
+ */
 	if(ZEND_NUM_ARGS() >= 11)	// field 1 is "srch_lng"
 	{
 	}
@@ -254,9 +256,48 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
 
 						std::stringstream sqlcoll;
 						// SECURITY : userid is type long
-						sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` (KEY(coll_id)) ENGINE=MEMORY SELECT coll_id, mask_xor, mask_and FROM collusr WHERE site='"
-								<< zsite_esc << "' AND usr_id=" << userid << " AND coll_id";
-						if(t_collid.size() == 1)
+						sqlcoll << "CREATE TEMPORARY TABLE `_tmpmask` (PRIMARY KEY(coll_id), KEY(only_business)) ENGINE=MEMORY SELECT coll_id, mask_xor, mask_and, ";
+                        
+                        if(ZEND_NUM_ARGS() >= 10)	// field 10 is "search_business"
+                        {
+                            sqlcoll << " FIND_IN_SET(coll_id, '";
+                            zval **tmp1;
+                            bool first = true;
+                            int n = 0;
+                            
+                            for(int i=0; true; i++)
+                            {
+                                if(zend_hash_index_find(HASH_OF(zbusiness), i, (void **) &tmp1) == SUCCESS)
+                                {
+                                    if(Z_TYPE_PP(tmp1) == IS_LONG)
+                                    {
+                                        if(!first)
+                                        {
+                                            sqlcoll << ",";
+                                        }
+                                        sqlcoll << Z_LVAL_P(*tmp1);
+                                        first = false;
+                                        n++;
+                                    }
+                                }
+                                else
+                                break;
+                            }
+
+                            sqlcoll << "')=0";
+                        }
+                        else
+                        {
+                            sqlcoll << " TRUE";
+                        }
+
+                        
+                        sqlcoll << " AS only_business FROM collusr WHERE site='" << zsite_esc << "' AND usr_id=" << userid << " AND coll_id";
+						
+                        
+                        
+                        
+                        if(t_collid.size() == 1)
 						{
 							// SECURITY : t_collid[i] is type long
 							sqlcoll << '=' << t_collid.begin()->first;
@@ -271,10 +312,11 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
 							sqlcoll << ')';
 						}
 						conn->query((char *) (sqlcoll.str().c_str())); // CREATE _tmpmask ...
-add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c_str()), true);
+
+                        add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c_str()), true);
 
 						add_assoc_double(return_value, (char *) "time_tmpmask", stopChrono(time_tmpmask));
-
+/*
 						// small sql that joins record and collusr
 						const char *sqltrec = "(record)";
 
@@ -289,9 +331,10 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 							unsigned long mask_and = atol(rowtmp1->field(2, "0"));
 							t_collmask[coll_id] = COLLMASK(mask_xor, mask_and);;
 						}
-
+*/
 
 						// let's check if we need to include mask in our queries (if every mask on every coll is '0', we dont need)
+                        bool use_mask = true;
 						SQLRES restmp(conn);
 						SQLROW *rowtmp;
 						restmp.query("SELECT BIT_COUNT(BIT_OR(`mask_xor` | `mask_and`)) FROM `_tmpmask`");
@@ -301,6 +344,8 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 							if(f[0] == '0' && f[1] == '\0')
 							{
 								// all masks=0; we don't need masks in queries !
+                                use_mask = false;
+/*
 								if(multidocMode == PHRASEA_MULTIDOC_DOCONLY)
 									sqltrec = "(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id AND parent_record_id=0)";
 								else
@@ -313,7 +358,8 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 									sqltrec = "(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id AND parent_record_id=0 AND ((status ^ mask_xor) & mask_and)=0)";
 								else
 									sqltrec = "(record INNER JOIN _tmpmask ON _tmpmask.coll_id=record.coll_id AND parent_record_id=1 AND ((status ^ mask_xor) & mask_and)=0)";
-							}
+*/
+                            }
 						}
 
 						// change the php query to a tree of nodes
@@ -369,20 +415,23 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 										 (char *)row->field(5, "root"),			// user
 										 (char *)row->field(6, ""),				// pwd
 										 (char *)row->field(4, "dbox"),			// base
-										 (char *)"_tmpmask",						// tmptable
+								//		 (char *)"_tmpmask",						// tmptable
 
-										 NULL,		// sqltmp
+								//		 NULL,		// sqltmp
 
 										 &sqlmutex,
 										 return_value,
-										 sqltrec,
+										 // sqltrec,
+                                         multidocMode,          // parent_record_id
+                                         use_mask,              // bool
 										 /*t_collmask,*/
 										 pzsortfield,
 										 sortmethod,
-										 sqlbusiness_c,
+										 // sqlbusiness_c,
 										 stemmer,
 										 srch_lng_esc,
-										 0				// 0: do not filter on rid
+								//		 0,				// 0: do not filter on rid
+                                         NULL               // NULL : do not filter on rid
 						);
 
 						if(MYSQL_THREAD_SAFE)
@@ -618,9 +667,12 @@ add_assoc_string(return_value, (char *) "sql_tmpmask", (char *) (sqlcoll.str().c
 			}
 		}
 	}
-
+/*
 	if(sqlbusiness_c)
 		EFREE(sqlbusiness_c);
-
+*/
 	add_assoc_double(return_value, (char *) "time_phpfct", stopChrono(time_phpfct));
+    
+    log("phrasea_query2", return_value);
 }
+
