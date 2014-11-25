@@ -67,7 +67,8 @@ ZEND_FUNCTION(phrasea_query2)
 	char *zsrchlng = NULL;
 	int zsrchlnglen;
 
-	std::map<long, long> t_collid;			// key : distant_coll_id (dbox side) ==> value : local_base_id (appbox side)
+	std::map<long, long> t_cid2bid;			// key : distant_coll_id (dbox side) ==> value : local_base_id (appbox side)
+	std::map<long, long> t_bid2cid;			// key : local_base_id (appbox side) ==> value : distant_coll_id (dbox side)
 	TCOLLMASK t_collmask; // key : distant_coll_id (dbox side) ==> value : mask_xor, mask_and
 
 	switch(ZEND_NUM_ARGS())
@@ -215,7 +216,8 @@ ZEND_FUNCTION(phrasea_query2)
 					long distant_coll_id = PHRASEA2_G(global_session)->get_distant_coll_id(Z_LVAL_P(*tmp1));
 					if(distant_coll_id != -1)
 					{
-						t_collid[distant_coll_id] = Z_LVAL_P(*tmp1);
+						t_cid2bid[distant_coll_id] = Z_LVAL_P(*tmp1);
+						t_bid2cid[Z_LVAL_P(*tmp1)] = distant_coll_id;
 					}
 				}
 			}
@@ -223,7 +225,7 @@ ZEND_FUNCTION(phrasea_query2)
 				break;
 		}
 
-		if(t_collid.size() > 0)
+		if(t_cid2bid.size() > 0)
 		{
 			CHRONO time_connect;
 			startChrono(time_connect);
@@ -271,13 +273,19 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
                                 {
                                     if(Z_TYPE_PP(tmp1) == IS_LONG)
                                     {
-                                        if(!first)
-                                        {
-                                            sqlcoll << ",";
+                                        // change the local base_id to distant coll_id
+                                        try {
+                                            long cid = t_bid2cid.at(Z_LVAL_P(*tmp1));
+                                            if(!first)
+                                            {
+                                                sqlcoll << ",";
+                                            }
+                                            sqlcoll << cid;
+                                            first = false;
+                                            n++;
                                         }
-                                        sqlcoll << Z_LVAL_P(*tmp1);
-                                        first = false;
-                                        n++;
+                                        catch(int e) {
+                                        }
                                     }
                                 }
                                 else
@@ -295,19 +303,17 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
                         sqlcoll << " AS only_business FROM collusr WHERE site='" << zsite_esc << "' AND usr_id=" << userid << " AND coll_id";
 						
                         
-                        
-                        
-                        if(t_collid.size() == 1)
+                        if(t_cid2bid.size() == 1)
 						{
-							// SECURITY : t_collid[i] is type long
-							sqlcoll << '=' << t_collid.begin()->first;
+							// SECURITY : t_cid2bid[i] is type long
+							sqlcoll << '=' << t_cid2bid.begin()->first;
 						}
 						else
 						{
-							// SECURITY : t_collid[i] is type long
+							// SECURITY : t_cid2bid[i] is type long
 							sqlcoll << " IN (-1"; // begin with a fake number (-1) allows to insert a comma each time (avoid a test)
 							std::map<long, long>::iterator it;
-							for(it = t_collid.begin(); it != t_collid.end(); it++)
+							for(it = t_cid2bid.begin(); it != t_cid2bid.end(); it++)
 								sqlcoll << ',' << it->first;
 							sqlcoll << ')';
 						}
@@ -581,7 +587,7 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
 											if(answer->cid != current_cid)
 											{
 												// change of collection, search id of matching local base
-												if((current_bid = t_collid[answer->cid]) == 0) // 0 if cid is unknown (default int constructor)
+												if((current_bid = t_cid2bid[answer->cid]) == 0) // 0 if cid is unknown (default int constructor)
 													current_bid = -1;
 												current_cid = answer->cid;
 											}
@@ -611,7 +617,7 @@ add_assoc_string(return_value, (char *) "sql_sbas", ((char *) (sql.str().c_str()
 											if(answer->cid != current_cid)
 											{
 												// change of collection, search id of matching local base
-												if((current_bid = t_collid[answer->cid]) == 0) // 0 if cid is unknown (default int constructor)
+												if((current_bid = t_cid2bid[answer->cid]) == 0) // 0 if cid is unknown (default int constructor)
 													current_bid = -1;
 												current_cid = answer->cid;
 											}
