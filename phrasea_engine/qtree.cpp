@@ -36,9 +36,18 @@ char *kwclause(Cquerytree2Parm *qp, KEYWORD *k)
 	int llng = 0;
 	if(qp->lng)
 	{
-		// add lng to the query
-		// (QQQQ) AND lnq='LNG'
-		ltot += 1 + (llng = strlen(qp->lng)) + 11 + 1;
+        if(qp->lng[0] == '\0')
+        {
+            // add lng to the query
+            // "(" + QQQQ + ") AND lnq=''"
+            ltot += 1 + 12;
+        }
+        else
+        {
+            // add lng to the query
+            // "(" + QQQQ + ") AND (lng='' OR lnq='" + LLL + "')"
+            ltot += 1 + 22 + (llng = strlen(qp->lng)) + 2;
+        }
 	}
 
 	KEYWORD *k0 = k;
@@ -114,13 +123,25 @@ char *kwclause(Cquerytree2Parm *qp, KEYWORD *k)
 				}
 			}
 		}
+        // add lng to the query
 		if(qp->lng)
 		{
-			memcpy(p, ") AND lng='", 11);
-			p += 11;
-			memcpy(p, qp->lng, llng);
-			p += llng;
-			*p++ = '\'';
+            if(qp->lng[0] == '\0')
+            {
+                memcpy(p, ") AND lng=''", 12);
+                p += 12;
+            }
+            else
+            {
+            //    memcpy(p, ") AND (lng='' OR lng='", 22);
+            //    p += 22;
+                memcpy(p, ") AND (lng='", 12);
+                p += 12;
+                memcpy(p, qp->lng, llng);
+                p += llng;
+                *p++ = '\'';
+                *p++ = ')';
+            }
 		}
 
 		*p = '\0';
@@ -612,7 +633,7 @@ THREAD_ENTRYPOINT querytree2(void *_qp)
                                    "%s%s"           // " AND record.recordid=ZZZ"
                                    , *(qp->psortField)
                                    , qp->multidoc_mode==PHRASEA_MULTIDOC_ALL ? "":(qp->multidoc_mode==PHRASEA_MULTIDOC_DOCONLY ? " AND parent_record_id=0" : " AND parent_record_id=1")
-                                   , qp->use_mask ? "" : " AND ((status ^ mask_xor) & mask_and)=0"
+                                   , qp->use_mask ? " AND ((status ^ mask_xor) & mask_and)=0" : ""
                                    , qp->srid ? " AND record.record_id=" : ""
                                    , qp->srid ? qp->srid : ""
                                    );

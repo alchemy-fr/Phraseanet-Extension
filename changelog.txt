@@ -1,3 +1,42 @@
+1.22.2.1
+fix : searching "all" with a sort returned records that user should not see
+bug found by "grand lyon"
+
+
+1.22.2.0
+searching with stem (lng) searches also non-stem index
+ex. : caption contains "Echappées", searching...
+
+now
+
+..."echappees" (whith stemming='fr') --> 0
+..."echappées" (whith stemming='fr') --> found
+
+..."echappees" (whith stemming='en') --> found
+..."echappées" (whith stemming='en') --> found
+
+..."echappees" (whithout stemming) --> found
+..."echappées" (whithout stemming) --> found
+
+previous version
+
+..."echappees" (whith stemming='fr') -->
+..."échappees" (whith stemming='fr') -->
+..."echappées" (whith stemming='fr') --> ok
+..."échappées" (whith stemming='fr') --> ok
+
+..."echappees" (whith stemming='en') --> ok
+..."échappees" (whith stemming='en') --> ok
+..."echappées" (whith stemming='en') --> ok
+..."échappées" (whith stemming='en') --> ok
+
+..."echappees" (whithout stemming)   --> ok
+..."échappees" (whithout stemming)   --> ok
+..."echappées" (whithout stemming)   --> ok
+..."échappées" (whithout stemming)   --> ok
+
+
+
 1.22.1.1
 fix: search on business sometimes did not work (reopen PHRAS-203)
 
